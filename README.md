@@ -12,6 +12,31 @@
 
 [查看演示 (Demo)](https://uptime.nianshu2022.cn) | [查看部署文档](DEPLOY.md)
 
+## 📸 界面预览
+
+<div align="center">
+  <img src="img/Uptime-Monitor-pc.png" alt="PC Status Page" width="100%"/>
+  <br>
+  <em>公开状态页 (支持深色/浅色模式)</em>
+</div>
+
+<br>
+
+<div align="center">
+  <img src="img/Uptime-Monitor-admin.png" alt="Admin Dashboard" width="100%"/>
+  <br>
+  <em>管理后台</em>
+</div>
+
+<br>
+
+<div align="center">
+  <img src="img/Uptime-Monitor-app.png" alt="Mobile View" width="45%"/>
+  <img src="img/Uptime-Monitor-down.png" alt="Down Status / Alert" width="45%"/>
+  <br>
+  <em>移动端适配 & 故障状态展示</em>
+</div>
+
 ---
 
 ## ✨ 核心特性
