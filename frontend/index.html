@@ -3,104 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uptime Monitor</title>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <title>System Status</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* 霓虹光效 */
+        .neon-green {
+            box-shadow: 0 0 5px #22c55e, 0 0 10px #22c55e;
+        }
+        .neon-red {
+            box-shadow: 0 0 5px #ef4444, 0 0 10px #ef4444;
+        }
+        /* 玻璃拟态卡片 */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        /* 呼吸动画 */
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-slow {
+            animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        /* 进度条动画 */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+    </style>
 </head>
-<body class="bg-gray-100">
-    <div id="app" class="container mx-auto p-4">
-        <h1 class="text-3xl font-bold mb-6">Uptime Monitor</h1>
-        
-        <!-- 添加监控表单 -->
-        <div class="bg-white p-4 rounded shadow mb-6">
-            <h2 class="text-xl font-semibold mb-4">添加监控</h2>
-            <div class="flex gap-4">
-                <input v-model="newMonitor.name" placeholder="网站名称" class="border p-2 rounded flex-1">
-                <input v-model="newMonitor.url" placeholder="URL (https://...)" class="border p-2 rounded flex-2">
-                <input v-model="newMonitor.keyword" placeholder="关键词 (可选)" class="border p-2 rounded flex-1">
-                <button @click="addMonitor" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">添加</button>
+<body class="min-h-screen flex flex-col bg-slate-900 text-slate-200 selection:bg-green-500 selection:text-black">
+    <div id="app" class="container mx-auto px-4 py-12 max-w-4xl flex-1 relative">
+        <!-- 背景装饰 -->
+        <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none opacity-20">
+            <div class="absolute top-[-10%] right-[-5%] w-96 h-96 bg-blue-600 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-green-600 rounded-full blur-3xl"></div>
+        </div>
+
+        <header class="text-center mb-16 relative">
+            <div class="inline-block mb-4 px-3 py-1 border border-green-500/30 rounded-full bg-green-500/10 text-green-400 text-xs font-mono tracking-wider uppercase">
+                <i class="fas fa-circle text-[8px] mr-2 animate-pulse"></i> System Operational
+            </div>
+            <h1 class="text-5xl md:text-6xl font-bold tracking-tighter text-white mb-4" style="text-shadow: 0 0 20px rgba(255,255,255,0.1);">
+                STATUS<span class="text-green-500">.</span>PAGE
+            </h1>
+            <p class="text-slate-400 max-w-lg mx-auto font-light text-lg">实时监控服务运行状态与性能指标</p>
+        </header>
+
+        <!-- 整体状态概览 -->
+        <div class="mb-12">
+            <div v-if="allUp" class="glass-card p-8 rounded-2xl flex flex-col items-center justify-center border-t-4 border-t-green-500 shadow-2xl relative overflow-hidden group">
+                <div class="absolute inset-0 bg-green-500/5 group-hover:bg-green-500/10 transition duration-500"></div>
+                <i class="fas fa-shield-alt text-6xl text-green-500 mb-4 drop-shadow-[0_0_10px_rgba(34,197,94,0.5)]"></i>
+                <h2 class="text-2xl font-bold text-white mb-1">所有系统运行正常</h2>
+                <p class="text-slate-400 text-sm font-mono">All Systems Operational</p>
+            </div>
+            <div v-else class="glass-card p-8 rounded-2xl flex flex-col items-center justify-center border-t-4 border-t-red-500 shadow-2xl relative overflow-hidden">
+                <div class="absolute inset-0 bg-red-500/5 animate-pulse-slow"></div>
+                <i class="fas fa-exclamation-triangle text-6xl text-red-500 mb-4 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]"></i>
+                <h2 class="text-2xl font-bold text-white mb-1">部分服务出现异常</h2>
+                <p class="text-slate-400 text-sm font-mono">Service Disruption Detected</p>
             </div>
         </div>
 
         <!-- 监控列表 -->
-        <div class="grid gap-4">
-            <div v-for="m in monitors" :key="m.id" class="bg-white p-4 rounded shadow flex justify-between items-center">
-                <div>
-                    <h3 class="font-bold text-lg">{{ m.name }}</h3>
-                    <a :href="m.url" target="_blank" class="text-blue-500 text-sm hover:underline">{{ m.url }}</a>
-                    <div v-if="m.keyword" class="text-xs text-gray-400">关键词: {{ m.keyword }}</div>
+        <div class="grid gap-5">
+            <div v-for="m in monitors" :key="m.id" class="glass-card p-5 rounded-xl hover:bg-slate-800/50 transition duration-300 flex flex-col md:flex-row justify-between items-center group border-l-4" :class="m.status === 'UP' ? 'border-l-green-500' : 'border-l-red-500'">
+                
+                <div class="flex items-center gap-5 w-full md:w-auto mb-4 md:mb-0">
+                    <div class="relative">
+                        <div class="w-3 h-3 rounded-full absolute inset-0 animate-ping opacity-75" :class="m.status === 'UP' ? 'bg-green-500' : 'bg-red-500'"></div>
+                        <div class="w-3 h-3 rounded-full relative z-10" :class="m.status === 'UP' ? 'bg-green-500 neon-green' : 'bg-red-500 neon-red'"></div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg text-white tracking-wide">{{ m.name }}</h3>
+                        <a :href="m.url" target="_blank" class="text-slate-500 text-xs font-mono hover:text-green-400 transition flex items-center gap-1">
+                            {{ m.url }} <i class="fas fa-external-link-alt text-[10px]"></i>
+                        </a>
+                    </div>
                 </div>
-                <div class="flex items-center gap-4">
-                    <span :class="statusClass(m.status)" class="px-3 py-1 rounded text-sm font-bold">
-                        {{ m.status }}
-                    </span>
-                    <div class="text-right text-sm text-gray-500">
-                        <div>上次检查: {{ formatDate(m.last_check) }}</div>
-                        <div v-if="m.status === 'RETRYING'">重试: {{ m.retry_count }}/3</div>
+
+                <!-- 状态指示胶囊 -->
+                <div class="flex flex-col md:flex-row items-end md:items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                    <!-- 延迟/过期信息 -->
+                    <div class="flex flex-row md:flex-col items-center md:items-end text-xs text-slate-500 font-mono mr-0 md:mr-4 gap-3 md:gap-1">
+                         <!-- 有证书信息显示天数 -->
+                         <div v-if="m.cert_expiry" class="flex items-center gap-1 px-2 py-1 rounded border transition-colors duration-300" :class="getExpiryClass(m.cert_expiry)">
+                            <i class="fas fa-lock text-[10px]"></i> SSL: {{ formatExpiry(m.cert_expiry) }}
+                         </div>
+                         <!-- 没证书信息但网站是UP的，显示Secure -->
+                         <div v-else-if="m.status === 'UP'" class="flex items-center gap-1 px-2 py-1 rounded border border-green-500/30 bg-green-500/10 text-green-400">
+                            <i class="fas fa-shield-alt text-[10px]"></i> SSL: OK
+                         </div>
+                         <div class="text-slate-600">{{ formatDate(m.last_check) }}</div>
+                    </div>
+
+                    <div class="px-4 py-1.5 rounded-md text-xs font-bold tracking-wider font-mono uppercase border" 
+                         :class="m.status === 'UP' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'">
+                        {{ m.status === 'UP' ? 'ONLINE' : 'OFFLINE' }}
                     </div>
                 </div>
             </div>
         </div>
+        
+        <!-- 底部 -->
+        <div class="mt-16 text-center border-t border-slate-800 pt-8">
+             <a href="/admin" class="inline-flex items-center gap-2 text-slate-600 hover:text-green-400 transition text-sm font-mono group">
+                <i class="fas fa-terminal group-hover:animate-pulse"></i> Admin Access
+             </a>
+             <p class="mt-4 text-xs text-slate-700">
+                SYSTEM ID: {{ Math.random().toString(36).substr(2, 9).toUpperCase() }} | CLOUDFLARE EDGE
+             </p>
+        </div>
     </div>
 
     <script>
-        // 重要：部署后请将此处替换为你 Worker 的实际地址
-        // 例如: https://uptime-worker.你的名字.workers.dev
+        // 你的 Worker 地址
         const API_BASE = 'https://uptime-worker.2478951652.workers.dev'; 
 
-        const { createApp, ref, onMounted } = Vue;
+        const { createApp, ref, onMounted, computed } = Vue;
 
         createApp({
             setup() {
                 const monitors = ref([]);
-                const newMonitor = ref({ name: '', url: '', keyword: '' });
+                const loading = ref(false);
+
+                const allUp = computed(() => {
+                    if (monitors.value.length === 0) return true;
+                    return monitors.value.every(m => m.status === 'UP');
+                });
 
                 const fetchMonitors = async () => {
+                    loading.value = true;
                     try {
-                        const res = await fetch(`${API_BASE}/monitors`);
-                        if (!res.ok) throw new Error('Failed to fetch');
-                        monitors.value = await res.json();
-                    } catch (e) {
-                        console.error(e);
-                    }
-                };
-
-                const addMonitor = async () => {
-                    if (!newMonitor.value.name || !newMonitor.value.url) return;
-                    try {
-                        const res = await fetch(`${API_BASE}/monitors`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(newMonitor.value)
-                        });
+                        const res = await fetch(`${API_BASE}/monitors/public`);
                         if (res.ok) {
-                            newMonitor.value = { name: '', url: '', keyword: '' };
-                            fetchMonitors();
-                        } else {
-                            alert('添加失败');
+                            monitors.value = await res.json();
                         }
                     } catch (e) {
-                        alert('网络错误');
+                        console.error(e);
+                    } finally {
+                        loading.value = false;
                     }
-                };
-
-                const statusClass = (status) => {
-                    if (status === 'UP') return 'bg-green-100 text-green-800';
-                    if (status === 'DOWN') return 'bg-red-100 text-red-800';
-                    return 'bg-yellow-100 text-yellow-800';
                 };
 
                 const formatDate = (str) => {
-                    if (!str) return '从未';
-                    return new Date(str).toLocaleString();
+                    if (!str) return '-';
+                    // 处理 UTC 时间
+                    let dateStr = str;
+                    if (typeof str === 'string' && !str.includes('Z') && !str.includes('+') && !str.includes('T')) {
+                        dateStr = str.replace(' ', 'T') + 'Z';
+                    } else if (typeof str === 'string' && !str.includes('Z') && !str.includes('+')) {
+                        dateStr = str + 'Z';
+                    }
+
+                    const date = new Date(dateStr);
+                    const now = new Date();
+                    const diff = (now - date) / 1000;
+                    
+                    if (diff < 60) return '< 1m ago';
+                    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+                    
+                    return date.toLocaleString('zh-CN', {
+                        hour: '2-digit', minute: '2-digit', hour12: false
+                    });
+                };
+                
+                const getDaysRemaining = (dateStr) => {
+                    if (!dateStr) return '-';
+                    const diff = new Date(dateStr).getTime() - Date.now();
+                    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+                };
+
+                const getExpiryClass = (dateStr) => {
+                    const days = getDaysRemaining(dateStr);
+                    if (days < 0) return 'text-slate-600 border-slate-700 opacity-50'; // 过期但 crt.sh 数据滞后
+                    if (days < 7) return 'text-red-400 font-bold border-red-500/30 bg-red-500/10';
+                    if (days < 30) return 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';
+                    return 'text-green-400 border-green-500/30 bg-green-500/10';
+                };
+
+                // 在模板里也改一下显示逻辑
+                // 如果 days < 0，显示 "Unknown" 或 "Valid"
+                const formatExpiry = (dateStr) => {
+                    const days = getDaysRemaining(dateStr);
+                    if (days < 0) return 'Valid'; // 既然网站是 UP 的，证书肯定是 Valid 的（或者是 crt.sh 没查到新的）
+                    return `${days}d`;
                 };
 
                 onMounted(fetchMonitors);
+                setInterval(fetchMonitors, 30000);
 
-                return { monitors, newMonitor, addMonitor, statusClass, formatDate };
+                return { 
+                    monitors, loading, allUp,
+                    formatDate, getDaysRemaining, getExpiryClass, formatExpiry
+                };
             }
         }).mount('#app');
     </script>
 </body>
 </html>
-

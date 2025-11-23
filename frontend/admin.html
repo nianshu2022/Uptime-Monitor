@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uptime Monitor</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- 登录弹窗 -->
+        <div v-if="!isAuthenticated" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+            <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">访问受限</h2>
+                <p class="text-gray-500 mb-6">请输入管理员密码以继续</p>
+                <input type="password" v-model="inputPassword" @keyup.enter="login" placeholder="输入密码" class="w-full border border-gray-300 p-3 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 outline-none text-center text-lg">
+                <button @click="login" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-bold transition">
+                    进入系统
+                </button>
+            </div>
+        </div>
+
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">
+                <i class="fas fa-heartbeat text-green-500 mr-2"></i>Uptime Monitor v1.1
+            </h1>
+            <div class="flex gap-4">
+                <a href="/" class="text-gray-500 hover:text-blue-600 transition text-sm flex items-center">
+                    <i class="fas fa-home mr-1"></i> 首页
+                </a>
+                <button @click="fetchMonitors" class="text-gray-500 hover:text-gray-700 transition">
+                    <i class="fas fa-sync-alt" :class="{ 'fa-spin': loading }"></i> 刷新
+                </button>
+                <button @click="logout" class="text-gray-400 hover:text-red-500 transition text-sm">
+                    <i class="fas fa-sign-out-alt"></i> 退出
+                </button>
+            </div>
+        </header>
+        
+        <!-- 添加监控表单 -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+            <h2 class="text-lg font-semibold mb-4 flex items-center text-gray-700">
+                <i class="fas fa-plus-circle mr-2"></i>添加新监控
+            </h2>
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1">
+                    <input v-model="newMonitor.name" placeholder="网站名称 (如: My Blog)" class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                </div>
+                <div class="flex-[2]">
+                    <input v-model="newMonitor.url" placeholder="URL (如: https://example.com)" class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                </div>
+                <div class="flex-1">
+                    <input v-model="newMonitor.keyword" placeholder="关键词验证 (可选)" class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                </div>
+                <button @click="addMonitor" :disabled="submitting" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition shadow-sm">
+                    <span v-if="submitting"><i class="fas fa-spinner fa-spin mr-1"></i> 添加中</span>
+                    <span v-else>添加</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 监控列表 -->
+        <div v-if="monitors.length === 0" class="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-100 border-dashed">
+            <i class="fas fa-inbox text-4xl mb-3"></i>
+            <p>暂无监控项，请在上方添加</p>
+        </div>
+
+        <div class="grid gap-4">
+            <div v-for="m in monitors" :key="m.id" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col md:flex-row justify-between items-start md:items-center group">
+                <div class="mb-4 md:mb-0">
+                    <div class="flex items-center gap-3 mb-1">
+                        <h3 class="font-bold text-lg text-gray-900">{{ m.name }}</h3>
+                        <span :class="statusClass(m.status)" class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide">
+                            {{ m.status }}
+                        </span>
+                    </div>
+                    <a :href="m.url" target="_blank" class="text-gray-500 text-sm hover:text-blue-600 flex items-center gap-1 transition">
+                        {{ m.url }} <i class="fas fa-external-link-alt text-xs opacity-50"></i>
+                    </a>
+                    <div v-if="m.keyword" class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                        <i class="fas fa-check-double text-xs"></i> 关键词: {{ m.keyword }}
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+                    <div class="text-right text-sm text-gray-500">
+                        <div class="flex items-center justify-end gap-2">
+                            <i class="far fa-clock text-xs opacity-70"></i>
+                            <span>上次: {{ formatDate(m.last_check) }}</span>
+                        </div>
+                        <div v-if="m.cert_expiry" class="text-xs mt-1" :class="getExpiryClass(m.cert_expiry)">
+                            <i class="fas fa-certificate"></i> SSL: {{ getDaysRemaining(m.cert_expiry) }}天
+                        </div>
+                        <div v-if="m.domain_expiry" class="text-xs mt-1" :class="getExpiryClass(m.domain_expiry)">
+                            <i class="fas fa-globe"></i> 域名: {{ getDaysRemaining(m.domain_expiry) }}天
+                        </div>
+                        <div v-if="m.status === 'RETRYING'" class="text-orange-500 font-medium mt-1">
+                            <i class="fas fa-redo-alt fa-spin text-xs mr-1"></i> 重试: {{ m.retry_count }}/3
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button @click="viewLogs(m)" class="text-gray-400 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition" title="查看日志">
+                            <i class="fas fa-list-ul"></i>
+                        </button>
+                        <button @click="deleteMonitor(m.id)" class="text-gray-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition" title="删除">
+                            <i class="far fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志模态框 -->
+        <div v-if="showLogs" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showLogs = false">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col mx-4">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                    <h3 class="font-bold text-lg text-gray-800">
+                        监测日志: {{ currentMonitor?.name }}
+                    </h3>
+                    <button @click="showLogs = false" class="text-gray-400 hover:text-gray-600 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-0 overflow-y-auto flex-1">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50 text-gray-500 font-medium border-b border-gray-100">
+                            <tr>
+                                <th class="px-6 py-3">时间</th>
+                                <th class="px-6 py-3">状态码</th>
+                                <th class="px-6 py-3">耗时</th>
+                                <th class="px-6 py-3">结果</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr v-for="log in logs" :key="log.id" class="hover:bg-gray-50 transition">
+                                <td class="px-6 py-3 text-gray-500">{{ formatDate(log.created_at) }}</td>
+                                <td class="px-6 py-3 font-mono">{{ log.status_code || '-' }}</td>
+                                <td class="px-6 py-3 font-mono text-gray-500">{{ log.latency }}ms</td>
+                                <td class="px-6 py-3">
+                                    <span v-if="log.is_fail" class="text-red-600 flex items-center gap-1">
+                                        <i class="fas fa-exclamation-circle"></i> 失败 ({{ log.reason }})
+                                    </span>
+                                    <span v-else class="text-green-600 flex items-center gap-1">
+                                        <i class="fas fa-check-circle"></i> 正常
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr v-if="logs.length === 0">
+                                <td colspan="4" class="text-center py-8 text-gray-400">暂无日志数据</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 你的 Worker 地址
+        const API_BASE = 'https://uptime-worker.2478951652.workers.dev'; 
+
+        const { createApp, ref, onMounted, computed } = Vue;
+
+        createApp({
+            setup() {
+                const monitors = ref([]);
+                const logs = ref([]);
+                const showLogs = ref(false);
+                const currentMonitor = ref(null);
+                const newMonitor = ref({ name: '', url: '', keyword: '' });
+                const loading = ref(false);
+                const submitting = ref(false);
+                
+                const inputPassword = ref('');
+                const storedPassword = ref(localStorage.getItem('uptime_admin_password'));
+                // 只有当 localStorage 里有非空字符串时才算已认证
+                const isAuthenticated = computed(() => {
+                    return storedPassword.value && storedPassword.value.length > 0;
+                });
+
+                // 封装带 Auth 的 fetch
+                const authFetch = async (url, options = {}) => {
+                    const headers = {
+                        ...options.headers,
+                        'Authorization': `Bearer ${storedPassword.value}`
+                    };
+                    const res = await fetch(url, { ...options, headers });
+                    if (res.status === 401) {
+                        console.log('401 received, clearing password');
+                        storedPassword.value = '';
+                        localStorage.removeItem('uptime_admin_password');
+                        // 强制刷新页面以重置状态
+                        location.reload();
+                    }
+                    return res;
+                };
+
+                const login = () => {
+                    if (!inputPassword.value) return;
+                    storedPassword.value = inputPassword.value;
+                    localStorage.setItem('uptime_admin_password', inputPassword.value);
+                    fetchMonitors();
+                };
+
+                const logout = () => {
+                    storedPassword.value = '';
+                    localStorage.removeItem('uptime_admin_password');
+                    monitors.value = [];
+                    // 退出后跳转到公开首页
+                    window.location.href = '/';
+                };
+
+                const fetchMonitors = async () => {
+                    if (!isAuthenticated.value) return;
+                    loading.value = true;
+                    try {
+                        const res = await authFetch(`${API_BASE}/monitors`);
+                        if (res && res.ok) {
+                            monitors.value = await res.json();
+                        } else if (res && res.status === 401) {
+                             // authFetch 已经处理了清理逻辑，这里不需要做什么
+                             console.log('Auth failed');
+                        }
+                    } catch (e) {
+                        console.error('Fetch error:', e);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const addMonitor = async () => {
+                    if (!newMonitor.value.name || !newMonitor.value.url) return;
+                    submitting.value = true;
+                    try {
+                        const res = await authFetch(`${API_BASE}/monitors`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(newMonitor.value)
+                        });
+                        if (res.ok) {
+                            newMonitor.value = { name: '', url: '', keyword: '' };
+                            fetchMonitors();
+                        } else {
+                            alert('添加失败');
+                        }
+                    } catch (e) {
+                        alert('网络错误');
+                    } finally {
+                        submitting.value = false;
+                    }
+                };
+
+                const deleteMonitor = async (id) => {
+                    if (!confirm('确定要删除这个监控项吗？历史日志也会被删除。')) return;
+                    try {
+                        const res = await authFetch(`${API_BASE}/monitors/${id}`, { method: 'DELETE' });
+                        if (res.ok) {
+                            fetchMonitors();
+                        } else {
+                            alert('删除失败');
+                        }
+                    } catch (e) {
+                        alert('网络错误');
+                    }
+                };
+
+                const viewLogs = async (monitor) => {
+                    currentMonitor.value = monitor;
+                    logs.value = [];
+                    showLogs.value = true;
+                    try {
+                        const res = await authFetch(`${API_BASE}/monitors/${monitor.id}/logs`);
+                        if (res.ok) {
+                            logs.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                };
+
+                const statusClass = (status) => {
+                    if (status === 'UP') return 'bg-green-100 text-green-700 border border-green-200';
+                    if (status === 'DOWN') return 'bg-red-100 text-red-700 border border-red-200 animate-pulse';
+                    return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+                };
+
+                const formatDate = (str) => {
+                    if (!str) return '-';
+                    // SQLite 的 CURRENT_TIMESTAMP 通常是 "YYYY-MM-DD HH:MM:SS" 格式 (UTC)
+                    // 如果没有 'Z' 或 '+'，我们需要手动将其视为 UTC
+                    let dateStr = str;
+                    if (typeof str === 'string' && !str.includes('Z') && !str.includes('+') && !str.includes('T')) {
+                        dateStr = str.replace(' ', 'T') + 'Z';
+                    } else if (typeof str === 'string' && !str.includes('Z') && !str.includes('+')) {
+                        dateStr = str + 'Z';
+                    }
+                    
+                    return new Date(dateStr).toLocaleString('zh-CN', {
+                        timeZone: 'Asia/Shanghai', // 强制使用北京时间
+                        year: 'numeric',
+                        month: '2-digit', 
+                        day: '2-digit', 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit',
+                        hour12: false
+                    });
+                };
+
+                const getDaysRemaining = (dateStr) => {
+                    if (!dateStr) return '-';
+                    const diff = new Date(dateStr).getTime() - Date.now();
+                    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+                };
+
+                const getExpiryClass = (dateStr) => {
+                    const days = getDaysRemaining(dateStr);
+                    if (days < 7) return 'text-red-600 font-bold';
+                    if (days < 30) return 'text-yellow-600';
+                    return 'text-gray-400';
+                };
+
+                onMounted(() => {
+                    if (isAuthenticated.value) {
+                        fetchMonitors();
+                    }
+                });
+
+                return { 
+                    monitors, newMonitor, logs, showLogs, currentMonitor, 
+                    loading, submitting, inputPassword, isAuthenticated,
+                    login, logout,
+                    addMonitor, deleteMonitor, viewLogs, fetchMonitors, 
+                    statusClass, formatDate, getDaysRemaining, getExpiryClass 
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
