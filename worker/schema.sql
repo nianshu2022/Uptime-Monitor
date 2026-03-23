@@ -16,6 +16,10 @@ CREATE TABLE monitors (
   cert_expiry TEXT,
   check_info_status TEXT,
   paused INTEGER DEFAULT 0,
+  check_ssl INTEGER DEFAULT 1,             -- 是否检测 SSL 证书到期 (1=开, 0=关)
+  check_domain INTEGER DEFAULT 1,          -- 是否检测域名到期 (1=开, 0=关)
+  alert_silence_hours INTEGER DEFAULT 24,  -- 告警静默窗口（小时），同一问题在此时间内只报一次
+  last_alert_at TEXT,                      -- 最近一次告警发送时间（ISO 字符串）
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

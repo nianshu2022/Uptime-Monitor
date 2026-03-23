@@ -20,6 +20,10 @@ interface Monitor {
   cert_expiry: string | null;
   check_info_status: string | null; // 记录上次更新证书信息的时间戳
   paused: number; // 0 = 正常, 1 = 已暂停
+  check_ssl: number; // 1 = 检测 SSL 到期, 0 = 关闭
+  check_domain: number; // 1 = 检测域名到期, 0 = 关闭
+  alert_silence_hours: number; // 告警静默窗口（小时）
+  last_alert_at: string | null; // 最近一次告警发送时间
   created_at: string;
 }
 
@@ -154,6 +158,40 @@ app.delete('/monitors/:id', async (c) => {
   try {
     await c.env.DB.prepare('DELETE FROM logs WHERE monitor_id = ?').bind(id).run();
     await c.env.DB.prepare('DELETE FROM monitors WHERE id = ?').bind(id).run();
+    return c.json({ success: true });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    return c.json({ error: msg }, 500);
+  }
+});
+
+// 更新监控配置（功能开关 + 告警静默窗口）
+app.patch('/monitors/:id/config', async (c) => {
+  const id = c.req.param('id');
+  try {
+    const body = await c.req.json<{
+      check_ssl?: number;
+      check_domain?: number;
+      alert_silence_hours?: number;
+    }>();
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+
+    if (body.check_ssl !== undefined) { fields.push('check_ssl = ?'); values.push(body.check_ssl ? 1 : 0); }
+    if (body.check_domain !== undefined) { fields.push('check_domain = ?'); values.push(body.check_domain ? 1 : 0); }
+    if (body.alert_silence_hours !== undefined) {
+      const h = Number(body.alert_silence_hours);
+      if (!isNaN(h) && h >= 0) { fields.push('alert_silence_hours = ?'); values.push(h); }
+    }
+
+    if (fields.length === 0) return c.json({ error: 'No valid fields to update' }, 400);
+    values.push(id);
+
+    await c.env.DB.prepare(
+      `UPDATE monitors SET ${fields.join(', ')} WHERE id = ?`
+    ).bind(...values).run();
+
     return c.json({ success: true });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -338,6 +376,11 @@ async function performCheck(monitor: Monitor, env: Bindings) {
   let newStatus: Monitor['status'] = monitor.status;
   let newRetryCount = monitor.retry_count;
 
+  // 判断是否在静默窗口内（避免同一问题频繁告警）
+  const silenceHours = monitor.alert_silence_hours ?? 24;
+  const lastAlertMs = monitor.last_alert_at ? new Date(monitor.last_alert_at).getTime() : 0;
+  const silenced = silenceHours > 0 && (Date.now() - lastAlertMs) < silenceHours * 3600_000;
+
   if (isFail) {
     if (monitor.status === 'UP') {
       newStatus = 'RETRYING';
@@ -349,16 +392,28 @@ async function performCheck(monitor: Monitor, env: Bindings) {
         console.log(`Monitor ${monitor.name} retry ${newRetryCount}/3 failed.`);
       } else {
         newStatus = 'DOWN';
-        await sendDingTalkAlert(env, monitor, 'DOWN', `错误原因: ${reason}`);
-        console.log(`Monitor ${monitor.name} is DOWN! Alert sent.`);
+        if (!silenced) {
+          const sent = await sendDingTalkAlert(env, monitor, 'DOWN', `错误原因: ${reason}`);
+          if (sent) {
+            await env.DB.prepare('UPDATE monitors SET last_alert_at = ? WHERE id = ?')
+              .bind(new Date().toISOString(), monitor.id).run();
+          }
+          console.log(`Monitor ${monitor.name} is DOWN! Alert sent.`);
+        } else {
+          console.log(`Monitor ${monitor.name} is DOWN but silenced (${silenceHours}h window).`);
+        }
       }
     } else if (monitor.status === 'DOWN') {
-      // 持续 DOWN，不重复报警
+      // 持续 DOWN，静默窗口内不重复报警
       console.log(`Monitor ${monitor.name} is still DOWN.`);
     }
   } else {
     if (monitor.status === 'DOWN') {
-      await sendDingTalkAlert(env, monitor, 'UP', `响应耗时: ${latency}ms`);
+      const sent = await sendDingTalkAlert(env, monitor, 'UP', `响应耗时: ${latency}ms`);
+      if (sent) {
+        await env.DB.prepare('UPDATE monitors SET last_alert_at = ? WHERE id = ?')
+          .bind(new Date().toISOString(), monitor.id).run();
+      }
       console.log(`Monitor ${monitor.name} recovered.`);
     }
     newStatus = 'UP';
@@ -427,47 +482,55 @@ async function checkExpiryAlerts(env: Bindings) {
   console.log('Checking expiry alerts...');
   try {
     const { results } = await env.DB.prepare(
-      `SELECT id, name, url, cert_expiry, domain_expiry
+      `SELECT id, name, url, cert_expiry, domain_expiry,
+              check_ssl, check_domain, alert_silence_hours, last_alert_at
        FROM monitors
        WHERE paused = 0`
-    ).all<Pick<Monitor, 'id' | 'name' | 'url' | 'cert_expiry' | 'domain_expiry'>>();
+    ).all<Pick<Monitor, 'id' | 'name' | 'url' | 'cert_expiry' | 'domain_expiry' | 'check_ssl' | 'check_domain' | 'alert_silence_hours' | 'last_alert_at'>>();
 
     const now = Date.now();
 
     const tasks = results.map(async (monitor) => {
-      const checks: { label: string; dateStr: string | null }[] = [
-        { label: 'SSL 证书', dateStr: monitor.cert_expiry },
-        { label: '域名', dateStr: monitor.domain_expiry },
+      // 静默窗口检查
+      const silenceHours = monitor.alert_silence_hours ?? 24;
+      const lastAlertMs = monitor.last_alert_at ? new Date(monitor.last_alert_at).getTime() : 0;
+      const silenced = silenceHours > 0 && (now - lastAlertMs) < silenceHours * 3600_000;
+      if (silenced) {
+        console.log(`Expiry alert for ${monitor.url} silenced (${silenceHours}h window).`);
+        return;
+      }
+
+      const checks: { label: string; dateStr: string | null; enabled: boolean }[] = [
+        { label: 'SSL 证书', dateStr: monitor.cert_expiry, enabled: (monitor.check_ssl ?? 1) === 1 },
+        { label: '域名', dateStr: monitor.domain_expiry, enabled: (monitor.check_domain ?? 1) === 1 },
       ];
 
+      let alertSent = false;
       for (const check of checks) {
-        if (!check.dateStr) continue;
+        if (!check.enabled || !check.dateStr) continue;
         const daysLeft = Math.ceil(
           (new Date(check.dateStr).getTime() - now) / (1000 * 60 * 60 * 24)
         );
 
+        let detail = '';
         if (daysLeft <= 0) {
-          await sendDingTalkAlert(
-            env,
-            monitor as Monitor,
-            'DOWN',
-            `❌ ${check.label}已过期，请立即续期处理！`
-          );
+          detail = `❌ ${check.label}已过期，请立即续期处理！`;
         } else if (daysLeft <= 7) {
-          await sendDingTalkAlert(
-            env,
-            monitor as Monitor,
-            'DOWN',
-            `🚨 ${check.label}紧急预警，仅剩 ${daysLeft} 天到期，请尽快续期！`
-          );
+          detail = `🚨 ${check.label}紧急预警，仅剩 ${daysLeft} 天到期，请尽快续期！`;
         } else if (daysLeft <= 30) {
-          await sendDingTalkAlert(
-            env,
-            monitor as Monitor,
-            'DOWN',
-            `⏰ ${check.label}到期提醒，还有 ${daysLeft} 天到期，请注意续期。`
-          );
+          detail = `⏰ ${check.label}到期提醒，还有 ${daysLeft} 天到期，请注意续期。`;
         }
+
+        if (detail) {
+          const sent = await sendDingTalkAlert(env, monitor as Monitor, 'DOWN', detail);
+          if (sent) alertSent = true;
+        }
+      }
+
+      // 至少发送了一条告警，更新 last_alert_at
+      if (alertSent) {
+        await env.DB.prepare('UPDATE monitors SET last_alert_at = ? WHERE id = ?')
+          .bind(new Date().toISOString(), monitor.id).run();
       }
     });
 
@@ -487,14 +550,14 @@ async function sendDingTalkAlert(
   monitor: Pick<Monitor, 'name' | 'url'>,
   type: 'DOWN' | 'UP',
   detail: string
-): Promise<DingTalkResult | undefined> {
+): Promise<boolean> {
   // Item 1: 仅从环境变量读取，无硬编码密钥
   const accessToken = env.DINGTALK_ACCESS_TOKEN;
   const secret = env.DINGTALK_SECRET;
 
   if (!accessToken || !secret) {
     console.warn('DingTalk not configured: DINGTALK_ACCESS_TOKEN or DINGTALK_SECRET missing.');
-    return;
+    return false;
   }
 
   const timestamp = Date.now();
@@ -549,12 +612,12 @@ async function sendDingTalkAlert(
     const result = await resp.json<DingTalkResult>();
     if (result.errcode !== 0) {
       console.error('DingTalk API Error:', result);
+      return false;
     }
-    return result;
+    return true;
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
     console.error('Failed to send DingTalk alert:', e);
-    return { errcode: -1, errmsg: msg };
+    return false;
   }
 }
 

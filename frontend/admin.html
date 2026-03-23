@@ -308,6 +308,28 @@
                             <input v-model="newMonitor.user_agent" placeholder="默认: Uptime-Monitor/1.0"
                                 class="input-transition w-full border border-gray-200 dark:border-slate-600 rounded-lg px-4 py-2.5 dark:bg-slate-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 outline-none font-mono text-xs">
                         </div>
+                        <!-- 功能开关与静默窗口 -->
+                        <div class="md:col-span-12 flex flex-wrap items-center gap-6 pt-1 border-t border-gray-100 dark:border-slate-700">
+                            <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 cursor-pointer select-none">
+                                <input type="checkbox" v-model="newMonitor.check_ssl" class="w-4 h-4 rounded accent-blue-500">
+                                <i class="fas fa-lock text-xs text-gray-400"></i> 检测 SSL 证书
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 cursor-pointer select-none">
+                                <input type="checkbox" v-model="newMonitor.check_domain" class="w-4 h-4 rounded accent-blue-500">
+                                <i class="fas fa-globe text-xs text-gray-400"></i> 检测域名到期
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-gray-500 dark:text-slate-400 whitespace-nowrap">告警静默窗口</label>
+                                <select v-model="newMonitor.alert_silence_hours"
+                                    class="border border-gray-200 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm dark:bg-slate-900 dark:text-white focus:border-blue-500 outline-none">
+                                    <option value="1">1 小时</option>
+                                    <option value="4">4 小时</option>
+                                    <option value="12">12 小时</option>
+                                    <option value="24">24 小时</option>
+                                    <option value="72">72 小时</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="md:col-span-3 flex items-end">
                             <button @click="addMonitor" :disabled="submitting"
                                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
@@ -409,6 +431,11 @@
                                 : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'"
                                 :title="m.paused ? '恢复监控' : '暂停监控'">
                                 <i :class="m.paused ? 'fas fa-play' : 'fas fa-pause'"></i>
+                            </button>
+                            <button @click="openConfig(m)"
+                                class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                                title="配置">
+                                <i class="fas fa-sliders-h"></i>
                             </button>
                             <button @click="viewLogs(m)"
                                 class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -563,8 +590,78 @@
             </div>
         </transition>
         <!-- 遮罩层 -->
-        <div v-if="showLogs" @click="showLogs = false"
+        <div v-if="showLogs || showConfig" @click="showLogs = false; showConfig = false"
             class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"></div>
+
+        <!-- 配置面板（侧边抽屉，与日志抽屉同样风格）-->
+        <transition enter-active-class="transition transform duration-300 ease-in-out"
+            enter-from-class="translate-x-full" enter-to-class="translate-x-0"
+            leave-active-class="transition transform duration-300 ease-in-out" leave-from-class="translate-x-0"
+            leave-to-class="translate-x-full">
+            <div v-if="showConfig"
+                class="fixed inset-y-0 right-0 w-full max-w-sm bg-white dark:bg-slate-800 shadow-2xl z-50 border-l border-gray-200 dark:border-slate-700 flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-900">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ configTarget?.name }}</h3>
+                        <p class="text-xs text-gray-500 font-mono mt-1">功能开关与通知配置</p>
+                    </div>
+                    <button @click="showConfig = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 transition">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                    <!-- 功能开关 -->
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">检测功能</h4>
+                        <div class="space-y-3">
+                            <label class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-900 cursor-pointer">
+                                <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
+                                    <i class="fas fa-lock text-blue-400 w-4"></i>
+                                    <span>SSL 证书到期检测</span>
+                                </div>
+                                <input type="checkbox" v-model="configForm.check_ssl"
+                                    class="w-4 h-4 rounded accent-blue-500">
+                            </label>
+                            <label class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-slate-900 cursor-pointer">
+                                <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
+                                    <i class="fas fa-globe text-green-400 w-4"></i>
+                                    <span>域名到期检测</span>
+                                </div>
+                                <input type="checkbox" v-model="configForm.check_domain"
+                                    class="w-4 h-4 rounded accent-blue-500">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 告警静默窗口 -->
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">告警通知频率</h4>
+                        <p class="text-xs text-gray-400 mb-3">同一问题在窗口时间内只发送一次告警，避免频繁打扰。</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label v-for="opt in silenceOptions" :key="opt.value"
+                                class="flex flex-col items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all text-center"
+                                :class="configForm.alert_silence_hours === opt.value
+                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                                    : 'border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:border-blue-300'">
+                                <input type="radio" :value="opt.value" v-model="configForm.alert_silence_hours" class="sr-only">
+                                <span class="text-lg font-bold">{{ opt.label }}</span>
+                                <span class="text-[10px] mt-0.5">{{ opt.sub }}</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6 border-t border-gray-200 dark:border-slate-700">
+                    <button @click="saveConfig" :disabled="configSaving"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        <i v-if="configSaving" class="fas fa-spinner fa-spin"></i>
+                        <i v-else class="fas fa-save"></i>
+                        {{ configSaving ? '保存中...' : '保存配置' }}
+                    </button>
+                </div>
+            </div>
+        </transition>
 
         <!-- Item 8: 自定义确认 Modal -->
         <transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0"
@@ -627,7 +724,7 @@
                 const showLogs = ref(false);
                 const logsLoading = ref(false);
                 const currentMonitor = ref(null);
-                const newMonitor = ref({ name: '', url: '', keyword: '', user_agent: '' });
+                const newMonitor = ref({ name: '', url: '', keyword: '', user_agent: '', check_ssl: true, check_domain: true, alert_silence_hours: '24' });
                 const loading = ref(false);
                 const submitting = ref(false);
                 const error = ref(null);
@@ -636,6 +733,58 @@
                 const inputPassword = ref('');
                 const storedPassword = ref(sessionStorage.getItem('uptime_admin_password'));
                 const isAuthenticated = computed(() => !!storedPassword.value && storedPassword.value.length > 0);
+
+                // 配置面板
+                const showConfig = ref(false);
+                const configTarget = ref(null);
+                const configForm = ref({ check_ssl: true, check_domain: true, alert_silence_hours: 24 });
+                const configSaving = ref(false);
+                const silenceOptions = [
+                    { value: 1,  label: '1h',  sub: '每小时' },
+                    { value: 4,  label: '4h',  sub: '每4小时' },
+                    { value: 12, label: '12h', sub: '半天' },
+                    { value: 24, label: '24h', sub: '每天' },
+                    { value: 72, label: '72h', sub: '每3天' },
+                ];
+
+                const openConfig = (m) => {
+                    configTarget.value = m;
+                    configForm.value = {
+                        check_ssl: m.check_ssl !== 0,
+                        check_domain: m.check_domain !== 0,
+                        alert_silence_hours: m.alert_silence_hours ?? 24,
+                    };
+                    showConfig.value = true;
+                };
+
+                const saveConfig = async () => {
+                    if (!configTarget.value) return;
+                    configSaving.value = true;
+                    try {
+                        const body = {
+                            check_ssl: configForm.value.check_ssl ? 1 : 0,
+                            check_domain: configForm.value.check_domain ? 1 : 0,
+                            alert_silence_hours: Number(configForm.value.alert_silence_hours),
+                        };
+                        const res = await authFetch(`${API_BASE}/monitors/${configTarget.value.id}/config`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body),
+                        });
+                        if (res.ok) {
+                            addToast('配置已保存', 'success');
+                            showConfig.value = false;
+                            fetchMonitors();
+                        } else {
+                            const data = await res.json();
+                            addToast(data.error || '保存失败', 'error');
+                        }
+                    } catch (e) {
+                        addToast('网络错误，请稍后重试', 'error');
+                    } finally {
+                        configSaving.value = false;
+                    }
+                };
 
                 // ── Item 8: Toast 系统 ────────────────────────────
                 const toasts = ref([]);
@@ -767,13 +916,19 @@
                     }
                     submitting.value = true;
                     try {
+                        const body = {
+                            ...newMonitor.value,
+                            check_ssl: newMonitor.value.check_ssl ? 1 : 0,
+                            check_domain: newMonitor.value.check_domain ? 1 : 0,
+                            alert_silence_hours: Number(newMonitor.value.alert_silence_hours),
+                        };
                         const res = await authFetch(`${API_BASE}/monitors`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(newMonitor.value)
+                            body: JSON.stringify(body)
                         });
                         if (res.ok) {
-                            newMonitor.value = { name: '', url: '', keyword: '', user_agent: '' };
+                            newMonitor.value = { name: '', url: '', keyword: '', user_agent: '', check_ssl: true, check_domain: true, alert_silence_hours: '24' };
                             addToast('监控添加成功，正在获取证书信息…', 'success');
                             fetchMonitors();
                         } else {
@@ -880,9 +1035,10 @@
                     loading, submitting, inputPassword, isAuthenticated, error,
                     toasts, confirmModal,
                     stats, sparkline, uptimeStats,
+                    showConfig, configTarget, configForm, configSaving, silenceOptions,
                     login, logout,
                     addMonitor, deleteMonitor, viewLogs, fetchMonitors,
-                    togglePause, handleConfirm,
+                    togglePause, handleConfirm, openConfig, saveConfig,
                     formatDate, getDaysRemaining, getExpiryClass,
                 };
             }
