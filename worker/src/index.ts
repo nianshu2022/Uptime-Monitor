@@ -823,14 +823,30 @@ async function sendDingTalk(
   const signEncoded = encodeURIComponent(signBase64);
 
   const webhookUrl = `https://oapi.dingtalk.com/robot/send?access_token=${access_token}&timestamp=${timestamp}&sign=${signEncoded}`;
-  const msg = buildAlertMessage(monitor, type, detail);
-  const color = msg.isDown ? '#ff0000' : '#008000';
+  const isDown = type === 'DOWN';
+  const time = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  const title = isDown ? '🔴 服务故障报警' : '🟢 服务恢复通知';
+  const statusLabel = isDown
+    ? '<font color="#cc0000">⚠ 故障</font>'
+    : '<font color="#00aa55">✅ 恢复正常</font>';
 
-  const markdownText = `## ${msg.title}\n\n**监控对象**: ${msg.monitorName}\n\n**监控地址**: [点击访问](${msg.monitorUrl})\n\n**当前状态**: <font color="${color}">${msg.statusText}</font>\n\n**详细信息**: ${msg.detail}\n\n---\n📅 告警时间: ${msg.time}`;
+  const markdownText = [
+    `## ${title}`,
+    ``,
+    `| | |`,
+    `| --- | --- |`,
+    `| **监控名称** | ${monitor.name} |`,
+    `| **监控地址** | [${monitor.url}](${monitor.url}) |`,
+    `| **当前状态** | ${statusLabel} |`,
+    `| **详细信息** | ${detail} |`,
+    ``,
+    `---`,
+    `<font color="#999999">🕐 ${time} &nbsp;·&nbsp; Uptime Monitor</font>`,
+  ].join('\n');
 
   const resp = await fetch(webhookUrl, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ msgtype: 'markdown', markdown: { title: msg.title, text: markdownText } }),
+    body: JSON.stringify({ msgtype: 'markdown', markdown: { title, text: markdownText } }),
   });
   const result = await resp.json<DingTalkResult>();
   if (result.errcode !== 0) { console.error('DingTalk API Error:', result); return false; }
@@ -848,8 +864,23 @@ async function sendWeCom(
   if (!key) { console.warn('WeCom config missing.'); return false; }
 
   const webhookUrl = `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${key}`;
-  const msg = buildAlertMessage(monitor, type, detail);
-  const content = `${msg.title}\n> **监控对象**: ${msg.monitorName}\n> **监控地址**: [点击访问](${msg.monitorUrl})\n> **当前状态**: <font color="${msg.isDown ? 'warning' : 'info'}">${msg.statusText}</font>\n> **详细信息**: ${msg.detail}\n> 📅 告警时间: ${msg.time}`;
+  const isDown = type === 'DOWN';
+  const time = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  const title = isDown ? '🔴 服务故障报警' : '🟢 服务恢复通知';
+  const statusLine = isDown
+    ? '> 当前状态：<font color="warning">⚠ 故障</font>'
+    : '> 当前状态：<font color="info">✅ 恢复正常</font>';
+
+  const content = [
+    `**${title}**`,
+    ``,
+    `> 监控名称：**${monitor.name}**`,
+    `> 监控地址：[${monitor.url}](${monitor.url})`,
+    statusLine,
+    `> 详细信息：${detail}`,
+    ``,
+    `<font color="comment">🕐 ${time} · Uptime Monitor</font>`,
+  ].join('\n');
 
   const resp = await fetch(webhookUrl, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -870,33 +901,56 @@ async function sendFeishu(
   const { webhook_url, secret } = cfg;
   if (!webhook_url) { console.warn('Feishu config missing.'); return false; }
 
-  let url = webhook_url;
-  // 飞书签名
+  const isDown = type === 'DOWN';
+  const time = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  const title = isDown ? '🔴 服务故障报警' : '🟢 服务恢复通知';
+
+  // 飞书 interactive card 富文本卡片
+  const card = {
+    config: { wide_screen_mode: true },
+    header: {
+      title: { tag: 'plain_text', content: title },
+      template: isDown ? 'red' : 'green',
+    },
+    elements: [
+      {
+        tag: 'div',
+        fields: [
+          { is_short: true, text: { tag: 'lark_md', content: `**监控名称**\n${monitor.name}` } },
+          { is_short: true, text: { tag: 'lark_md', content: `**当前状态**\n${isDown ? '⚠ 故障' : '✅ 恢复正常'}` } },
+        ],
+      },
+      {
+        tag: 'div',
+        text: { tag: 'lark_md', content: `**监控地址**\n[${monitor.url}](${monitor.url})` },
+      },
+      {
+        tag: 'div',
+        text: { tag: 'lark_md', content: `**详细信息**\n${detail}` },
+      },
+      { tag: 'hr' },
+      {
+        tag: 'note',
+        elements: [{ tag: 'plain_text', content: `🕐 ${time} · Uptime Monitor` }],
+      },
+    ],
+  };
+
+  const body: Record<string, unknown> = { msg_type: 'interactive', card };
+
   if (secret) {
     const timestamp = Math.floor(Date.now() / 1000);
     const stringToSign = `${timestamp}\n${secret}`;
     const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey('raw', enc.encode(stringToSign), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    const signature = await crypto.subtle.sign('HMAC', key, enc.encode(''));
-    const sign = btoa(String.fromCharCode(...new Uint8Array(signature)));
-    const msg = buildAlertMessage(monitor, type, detail);
-    const content = `${msg.title}\n\n监控对象: ${msg.monitorName}\n监控地址: ${msg.monitorUrl}\n当前状态: ${msg.statusText}\n详细信息: ${msg.detail}\n告警时间: ${msg.time}`;
-
-    const resp = await fetch(url, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ timestamp: String(timestamp), sign, msg_type: 'text', content: { text: content } }),
-    });
-    const result = await resp.json<{ code: number }>();
-    if (result.code !== 0) { console.error('Feishu API Error:', result); return false; }
-    return true;
+    const cryptoKey = await crypto.subtle.importKey('raw', enc.encode(stringToSign), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(''));
+    body.timestamp = String(timestamp);
+    body.sign = btoa(String.fromCharCode(...new Uint8Array(signature)));
   }
 
-  const msg = buildAlertMessage(monitor, type, detail);
-  const content = `${msg.title}\n\n监控对象: ${msg.monitorName}\n监控地址: ${msg.monitorUrl}\n当前状态: ${msg.statusText}\n详细信息: ${msg.detail}\n告警时间: ${msg.time}`;
-
-  const resp = await fetch(url, {
+  const resp = await fetch(webhook_url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ msg_type: 'text', content: { text: content } }),
+    body: JSON.stringify(body),
   });
   const result = await resp.json<{ code: number }>();
   if (result.code !== 0) { console.error('Feishu API Error:', result); return false; }
@@ -913,9 +967,21 @@ async function sendTelegram(
   const { bot_token, chat_id } = cfg;
   if (!bot_token || !chat_id) { console.warn('Telegram config missing.'); return false; }
 
-  const msg = buildAlertMessage(monitor, type, detail);
-  const emoji = msg.isDown ? '🔴' : '🟢';
-  const text = `${emoji} <b>${msg.title}</b>\n\n<b>监控对象:</b> ${msg.monitorName}\n<b>监控地址:</b> <a href="${msg.monitorUrl}">${msg.monitorUrl}</a>\n<b>当前状态:</b> ${msg.statusText}\n<b>详细信息:</b> ${msg.detail}\n\n📅 <i>${msg.time}</i>`;
+  const isDown = type === 'DOWN';
+  const time = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  const header = isDown ? '🔴 <b>服务故障报警</b>' : '🟢 <b>服务恢复通知</b>';
+  const statusLine = isDown ? '⚠️ <b>故障</b>' : '✅ <b>恢复正常</b>';
+
+  const text = [
+    header,
+    ``,
+    `📌 <b>监控名称</b>  ${monitor.name}`,
+    `🌐 <b>监控地址</b>  <a href="${monitor.url}">${monitor.url}</a>`,
+    `🚦 <b>当前状态</b>  ${statusLine}`,
+    `📋 <b>详细信息</b>  ${detail}`,
+    ``,
+    `<i>🕐 ${time} · Uptime Monitor</i>`,
+  ].join('\n');
 
   const apiUrl = `https://api.telegram.org/bot${bot_token}/sendMessage`;
   const resp = await fetch(apiUrl, {

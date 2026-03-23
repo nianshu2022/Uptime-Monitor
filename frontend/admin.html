@@ -917,7 +917,7 @@
                             <template v-if="channelEditing.type === 'dingtalk'">
                                 <div class="mb-4">
                                     <label class="block text-xs text-slate-400 mb-2">Access Token</label>
-                                    <input v-model="channelEditing.config.access_token" placeholder="机器人的 access_token"
+                                    <input v-model="channelEditing.config.access_token" :placeholder="channelEditing.id ? '留空则保留原密钥' : '机器人的 access_token'"
                                         class="w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none placeholder-slate-600 font-mono">
                                 </div>
                                 <div class="mb-4">
@@ -930,7 +930,7 @@
                             <template v-if="channelEditing.type === 'wecom'">
                                 <div class="mb-4">
                                     <label class="block text-xs text-slate-400 mb-2">Webhook Key</label>
-                                    <input v-model="channelEditing.config.key" placeholder="机器人 Webhook 的 key 参数"
+                                    <input v-model="channelEditing.config.key" :placeholder="channelEditing.id ? '留空则保留原密钥' : '机器人 Webhook 的 key 参数'"
                                         class="w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none placeholder-slate-600 font-mono">
                                     <p class="text-xs text-slate-500 mt-1.5">从企业微信群机器人设置中获取 Webhook URL 中的 key 值</p>
                                 </div>
