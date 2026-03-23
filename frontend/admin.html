@@ -922,7 +922,7 @@
                                 </div>
                                 <div class="mb-4">
                                     <label class="block text-xs text-slate-400 mb-2">签名密钥 (Secret)</label>
-                                    <input v-model="channelEditing.config.secret" placeholder="加签的 Secret" type="password"
+                                    <input v-model="channelEditing.config.secret" :placeholder="channelEditing.id ? '留空则保留原密钥' : '加签的 Secret'" type="password"
                                         class="w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none placeholder-slate-600 font-mono">
                                 </div>
                             </template>
@@ -944,7 +944,7 @@
                                 </div>
                                 <div class="mb-4">
                                     <label class="block text-xs text-slate-400 mb-2">签名密钥 <span class="text-slate-600">可选</span></label>
-                                    <input v-model="channelEditing.config.secret" placeholder="签名验证的 Secret" type="password"
+                                    <input v-model="channelEditing.config.secret" :placeholder="channelEditing.id ? '留空则保留原密钥' : '签名验证的 Secret'" type="password"
                                         class="w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none placeholder-slate-600 font-mono">
                                 </div>
                             </template>
@@ -952,7 +952,7 @@
                             <template v-if="channelEditing.type === 'telegram'">
                                 <div class="mb-4">
                                     <label class="block text-xs text-slate-400 mb-2">Bot Token</label>
-                                    <input v-model="channelEditing.config.bot_token" placeholder="从 @BotFather 获取" type="password"
+                                    <input v-model="channelEditing.config.bot_token" :placeholder="channelEditing.id ? '留空则保留原密钥' : '从 @BotFather 获取'" type="password"
                                         class="w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none placeholder-slate-600 font-mono">
                                 </div>
                                 <div class="mb-4">
@@ -1403,12 +1403,26 @@
                 };
 
                 const editChannel = (ch) => {
-                    // 编辑时需要用新对象，config 可能被脱敏，提示用户重新输入
+                    // 解析服务端返回的脱敏 config，保留非敏感字段，密钥类字段留空让用户重新输入
+                    let parsedConfig = {};
+                    try {
+                        parsedConfig = typeof ch.config === 'string' ? JSON.parse(ch.config) : (ch.config || {});
+                    } catch (e) {}
+
+                    // 密钥类字段列表（与后端 maskSecret 逻辑对应）
+                    const secretKeys = ['secret', 'token', 'access_token', 'bot_token', 'key'];
+                    const cleanConfig = {};
+                    for (const [k, v] of Object.entries(parsedConfig)) {
+                        const isSecret = secretKeys.some(s => k.toLowerCase().includes(s));
+                        // 脱敏字段（含 ****）置空，让用户重新输入；非敏感字段原样保留
+                        cleanConfig[k] = (isSecret || (typeof v === 'string' && v.includes('****'))) ? '' : v;
+                    }
+
                     channelEditing.value = {
                         id: ch.id,
                         type: ch.type,
                         name: ch.name,
-                        config: {} // 密钥字段需要重新输入
+                        config: cleanConfig
                     };
                 };
 

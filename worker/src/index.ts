@@ -348,7 +348,28 @@ app.patch('/notification-channels/:id', async (c) => {
     const values: unknown[] = [];
     if (body.name !== undefined) { fields.push('name = ?'); values.push(body.name); }
     if (body.enabled !== undefined) { fields.push('enabled = ?'); values.push(body.enabled); }
-    if (body.config !== undefined) { fields.push('config = ?'); values.push(JSON.stringify(body.config)); }
+
+    // config 合并逻辑：只有 config 对象包含实际键值时才更新，防止空对象覆盖原有配置
+    if (body.config !== undefined && Object.keys(body.config).length > 0) {
+      // 读取当前 config，与新 config 做字段级合并（空字符串""的字段保留原值）
+      const existing = await c.env.DB.prepare(
+        'SELECT config FROM notification_channels WHERE id = ?'
+      ).bind(id).first<{ config: string }>();
+
+      let mergedConfig: Record<string, unknown> = {};
+      if (existing?.config) {
+        try { mergedConfig = JSON.parse(existing.config) as Record<string, unknown>; } catch { /**/ }
+      }
+      // 合并：只有新值非空字符串时才覆盖旧值
+      for (const [k, v] of Object.entries(body.config)) {
+        if (v !== '' && v !== null && v !== undefined) {
+          mergedConfig[k] = v;
+        }
+      }
+      fields.push('config = ?');
+      values.push(JSON.stringify(mergedConfig));
+    }
+
     if (fields.length === 0) return c.json({ error: 'No valid fields' }, 400);
     values.push(id);
     await c.env.DB.prepare(
