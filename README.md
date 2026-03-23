@@ -8,9 +8,19 @@
 
 <br>
 
-**Uptime Monitor** 是基于 Cloudflare 生态（Workers + Pages + D1）构建的轻量级网站监控系统。完全免费（利用 Cloudflare 免费额度），支持多站点监控、SSL 证书检测、域名过期提醒、钉钉机器人告警，以及可配置的告警频率控制。
+**Uptime Monitor** 是基于 Cloudflare 生态（Workers + Pages + D1）构建的轻量级网站监控系统。完全免费（利用 Cloudflare 免费额度），支持多站点监控、证书与域名过期检测、多渠道告警以及丰富的自定义数据配置。
 
-[查看演示](https://uptime.nianshu2022.cn) | [部署文档](DEPLOY.md)
+## ✨ 核心特性
+
+- **多站点高级监控**：HTTP/HTTPS 连通性检测，支持 GET/POST、自定义 Headers、请求 Body 以及关键词验证。
+- **证书 & 域名监控**：自动检测 SSL 证书与域名有效期（由 RDAP 获取），支持独立开关与阈值控制。
+- **丰富的告警渠道**：内置支持钉钉、企业微信、飞书、Telegram 机器人及自定义 Webhook。
+- **告警频率策略**：支持按监控项独立设置基于“错误率阈值”的告警，以及“可用性/SSL/域名”各自分离的恢复静默期。
+- **事件公告发布**：在公开状态页提供维护或紧急事件发布面板。
+- **现代化页面**：Dark OLED 风格管理后台与公开展示页，提供标签分类、批量操作、自定义站点 Logo 及进出口 JSON 配置功能。
+- **Serverless 零成本构架**：纯 Serverless 部署（Workers + D1 + Pages），数据私有化，无需服务器月费。
+
+---
 
 ## 📸 界面预览
 
@@ -23,50 +33,75 @@
 
 <div align="center">
   <img src="img/Uptime-Monitor-admin.png" alt="Admin Dashboard" width="100%"/>
-  <br><em>管理后台</em>
-</div>
-
-<br>
-
-<div align="center">
-  <img src="img/Uptime-Monitor-app.png" alt="Mobile" width="45%"/>
-  <img src="img/Uptime-Monitor-down.png" alt="Down Alert" width="45%"/>
-  <br><em>移动端适配 & 故障状态</em>
+  <br><em>管理后台（支持标签、批量操作与多渠道管理）</em>
 </div>
 
 ---
 
-## ✨ 核心特性
+## 🚀 部署指南
 
-- **多站点监控**：HTTP/HTTPS 连通性检测，支持自定义检查间隔与关键词验证。
-- **SSL 证书监控**：自动检测证书有效期，支持泛域名证书，可独立开关。
-- **域名过期提醒**：自动查询 RDAP 获取域名注册到期时间，可独立开关。
-- **钉钉告警**：Markdown 格式通知，含故障原因、SSL/域名剩余天数；HMAC-SHA256 加签安全验证。
-- **告警频率控制**：可用性、SSL、域名三项检测各自独立的静默窗口（1h \~ 72h），避免频繁打扰。
-- **重试防抖**：连续失败 3 次才触发 DOWN 告警，减少误报。
-- **Dark OLED 界面**：Plus Jakarta Sans 字体、玻璃卡片、绿色强调色，深色/浅色模式切换。
-- **Serverless 架构**：Workers + D1 + Pages，零服务器成本。
+该项目依赖于 Cloudflare 环境。部署前请确保在本地已运行 `npm install -g wrangler` 并且执行了 `wrangler login`。
 
-## 🚀 快速开始
+### 1. 创建 D1 数据库
+```bash
+npx wrangler d1 create uptime-db
+```
+执行后，请记录下终端返回的 `database_id`。
 
-1. 创建 D1 数据库 `uptime-db`
-2. 配置 `worker/wrangler.toml`（数据库 ID、钉钉 Token、管理密码）
-3. `cd worker && npx wrangler d1 execute uptime-db --remote --file=schema.sql`
-4. `npx wrangler deploy` 部署后端
-5. 修改前端 `API_BASE` 地址，`npx wrangler pages deploy . --project-name uptime-monitor`
+### 2. 配置 Worker 和 秘钥
+修改 `worker/wrangler.toml` 文件，填入：
+- `database_id`：上面获取的 ID。
+- 在 `[vars]` 下配制您的后台登录秘钥：
+  ```toml
+  [vars]
+  ADMIN_API_KEY = "您的专属登录口令"   # 优先级别高，可任意自定义
+  ADMIN_PASSWORD = "旧版密码体系保留" # 如果没有设置 API Key 则退回此项
+  ```
 
-详细步骤见 [DEPLOY.md](DEPLOY.md)。
+### 3. 初始化数据库结构
+```bash
+cd worker
+npx wrangler d1 execute uptime-db --remote --file=schema.sql
+```
 
-## 🛠️ 技术栈
+### 4. 部署后端 (Worker)
+```bash
+npx wrangler deploy
+```
+部署成功后你将得到一个形如 `https://uptime-worker.xxx.workers.dev` 的地址，请**复制该地址**用于下一步。
 
-| 层 | 技术 |
+### 5. 绑定到前端并部署 (Pages)
+1. 打开 `frontend/admin.html` 和 `frontend/index.html`。
+2. 将文件末尾的 `const API_BASE = 'https://...';` 替换为您刚刚部署的 Worker 后端完整地址 URL。
+3. 执行前端部署命令：
+```bash
+cd ../frontend
+npx wrangler pages deploy . --project-name uptime-monitor
+```
+> **提示**：为防止跨域或国内网络污染被拦截，建议到 Cloudflare Dashboard 分别给 Worker 和 Pages **绑定自定义域名**。
+
+---
+
+## 🛠️ 技术栈与系统架构
+
+| 模块 | 实现方案 |
 |---|---|
-| Runtime | Cloudflare Workers |
-| Framework | Hono |
-| Database | Cloudflare D1 (SQLite) |
-| Frontend | Vue 3 (CDN) + TailwindCSS + Plus Jakarta Sans |
-| Tools | Wrangler · crt.sh · rdap.org |
+| **API 服务层** | Cloudflare Workers + [Hono 路由框架](https://hono.dev/) |
+| **持久层 / 数据库** | Cloudflare D1 (Serverless SQLite) |
+| **静态前端层** | Cloudflare Pages + Vue 3 (CDN版) + TailwindCSS |
+| **第三方探针接口** | `crt.sh` (SSL) · `rdap.org` (域名期限) | 
 
-## 📝 版权信息
+---
+
+## 📝 维护与答疑
+
+- **如何添加通知渠道？**
+  进入后台右上角的“通知渠道”，您可以可视化添加并配置钉钉、企微、飞书、TG、Webhook 等令牌的映射并在线点击“测试”即可验证配置。
+
+- **为什么有些 SSL 证书不返回时间？**
+  证书是由内部机制每天定时根据 `crt.sh` 数据拉取的，初次加入监控请等待其通过 Cron 首次刷新。
+
+- **修改了状态页设置前端没生效？**
+  请耐心刷新页面确保未受各级 CDN 缓存（如浏览器或 Cloudflare Cache）的影响。
 
 &copy; 2025 [念舒](https://nianshu2022.cn). All Rights Reserved.
