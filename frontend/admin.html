@@ -96,6 +96,15 @@
         .card-hover { transition: border-color 0.2s, box-shadow 0.2s; }
         .card-hover:hover { border-color: rgba(255,255,255,0.1); box-shadow: 0 0 24px rgba(34,197,94,0.06); }
 
+        /* Tag 标签 */
+        .tag-chip { display:inline-flex; align-items:center; padding:1px 8px; border-radius:99px; font-size:10px; font-weight:600; background:rgba(99,102,241,0.15); color:#a5b4fc; border:1px solid rgba(99,102,241,0.25); }
+        .tag-filter-btn { padding:3px 10px; border-radius:99px; font-size:11px; cursor:pointer; border:1px solid rgba(255,255,255,0.08); transition: all 0.15s; }
+        .tag-filter-btn.active { background:#22c55e; color:#fff; border-color:#22c55e; }
+        .tag-filter-btn:not(.active) { color:#64748b; }
+        .tag-filter-btn:not(.active):hover { border-color:#22c55e; color:#22c55e; }
+        /* 批量操作栏 */
+        .bulk-bar { background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2); border-radius:12px; padding:8px 16px; display:flex; align-items:center; gap:12px; }
+
         @media (prefers-reduced-motion: reduce) {
             *, .fade-up, .fade-up-d1, .fade-up-d2 { animation:none!important; transition:none!important; }
         }
@@ -173,21 +182,31 @@
         <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-8">
 
             <!-- 页面标题 -->
-            <div class="mb-8 fade-up flex items-center justify-between">
+            <div class="mb-8 fade-up flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 class="text-2xl font-bold text-white tracking-tight">管理控制台</h1>
                     <p class="text-slate-500 text-sm mt-0.5">管理监控项目与通知配置</p>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button @click="showIncidents = true"
+                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-600/50">
+                        <i class="fas fa-flag text-xs"></i> 事件公告
+                    </button>
+                    <button @click="showSettings = true"
+                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-600/50">
+                        <i class="fas fa-cog text-xs"></i> 站点设置
+                    </button>
+                    <button @click="exportMonitors"
+                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-600/50">
+                        <i class="fas fa-download text-xs"></i> 导出
+                    </button>
                     <button @click="showChannels = true"
-                        class="flex items-center gap-2 px-4 py-2.5 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white text-sm font-medium rounded-xl transition-all shadow-sm cursor-pointer border border-slate-600/50">
-                        <i class="fas fa-bell text-xs"></i>
-                        通知渠道
+                        class="flex items-center gap-2 px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white text-sm font-medium rounded-xl transition-all cursor-pointer border border-slate-600/50">
+                        <i class="fas fa-bell text-xs"></i> 通知渠道
                     </button>
                     <button @click="showAddModal = true"
-                        class="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-xl transition-all shadow-sm hover:shadow-lg hover:shadow-green-500/20 cursor-pointer">
-                        <i class="fas fa-plus text-xs"></i>
-                        添加监控
+                        class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-xl transition-all hover:shadow-lg hover:shadow-green-500/20 cursor-pointer">
+                        <i class="fas fa-plus text-xs"></i> 添加监控
                     </button>
                 </div>
             </div>
@@ -264,17 +283,36 @@
 
             <!-- 监控列表 -->
             <div v-else class="space-y-2.5 fade-up-d2">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-xs font-semibold uppercase tracking-widest text-slate-500">监控列表</h2>
-                    <span class="text-xs font-mono text-slate-600">{{ monitors.length }} 个监控项</span>
+                <div class="flex flex-col gap-2 mb-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xs font-semibold uppercase tracking-widest text-slate-500">监控列表</h2>
+                        <span class="text-xs font-mono text-slate-600">{{ filteredMonitors.length }} / {{ monitors.length }} 个</span>
+                    </div>
+                    <!-- Tag 筛选 -->
+                    <div v-if="allTags.length > 0" class="flex flex-wrap items-center gap-1.5">
+                        <button class="tag-filter-btn" :class="!activeTag ? 'active' : ''" @click="activeTag = ''">全部</button>
+                        <button v-for="tag in allTags" :key="tag" class="tag-filter-btn" :class="activeTag === tag ? 'active' : ''" @click="activeTag = activeTag === tag ? '' : tag">{{ tag }}</button>
+                    </div>
+                    <!-- 批量操作栏 -->
+                    <div v-if="selectedIds.length > 0" class="bulk-bar">
+                        <span class="text-xs text-green-400 font-medium">已选 {{ selectedIds.length }} 项</span>
+                        <button @click="batchAction('pause')" class="text-xs px-3 py-1.5 rounded-lg bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/25 transition cursor-pointer"><i class="fas fa-pause mr-1"></i>暂停</button>
+                        <button @click="batchAction('resume')" class="text-xs px-3 py-1.5 rounded-lg bg-green-500/15 text-green-400 hover:bg-green-500/25 transition cursor-pointer"><i class="fas fa-play mr-1"></i>恢复</button>
+                        <button @click="batchAction('delete')" class="text-xs px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition cursor-pointer"><i class="fas fa-trash mr-1"></i>删除</button>
+                        <button @click="selectedIds = []" class="ml-auto text-xs text-slate-500 hover:text-white cursor-pointer"><i class="fas fa-times"></i></button>
+                    </div>
                 </div>
 
-                <div v-for="m in monitors" :key="m.id"
+                <div v-for="m in filteredMonitors" :key="m.id"
                     class="glass rounded-xl px-5 py-4 card-hover flex flex-col md:flex-row md:items-center md:justify-between gap-4 cursor-default group"
                     :class="m.paused ? 'opacity-50' : ''">
 
                     <!-- 左侧信息 -->
-                    <div class="flex items-center gap-4 min-w-0">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <!-- 复选框 -->
+                        <input type="checkbox" :value="m.id" v-model="selectedIds"
+                            class="w-4 h-4 rounded accent-green-500 shrink-0 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                            :class="selectedIds.includes(m.id) ? 'opacity-100' : ''">
                         <div class="relative shrink-0">
                             <div class="w-2.5 h-2.5 rounded-full"
                                 :class="{
@@ -288,6 +326,7 @@
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2 mb-0.5">
                                 <h3 class="font-semibold text-white truncate">{{ m.name }}</h3>
+                                <span class="text-[10px] font-mono text-slate-600 shrink-0">{{ m.method || 'GET' }}</span>
                                 <span v-if="m.status === 'DOWN'"
                                     class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 animate-pulse">DOWN</span>
                                 <span v-if="m.status === 'RETRYING'"
@@ -299,8 +338,9 @@
                                 class="text-xs text-slate-500 hover:text-green-400 font-mono flex items-center gap-1 truncate max-w-xs transition-colors">
                                 {{ m.url }} <i class="fas fa-external-link-alt text-[8px] opacity-40"></i>
                             </a>
-                            <div v-if="m.keyword" class="mt-0.5 text-[10px] text-slate-600 flex items-center gap-1">
-                                <i class="fas fa-filter text-[8px]"></i> 关键词: {{ m.keyword }}
+                            <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                                <span v-if="m.keyword" class="text-[10px] text-slate-600 flex items-center gap-1"><i class="fas fa-filter text-[8px]"></i>{{ m.keyword }}</span>
+                                <span v-for="tag in parseTags(m.tags)" :key="tag" class="tag-chip">{{ tag }}</span>
                             </div>
                         </div>
                     </div>
@@ -568,12 +608,20 @@
                             </h4>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">请求方法</label>
+                                    <select v-model="newMonitor.method" class="input-field w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none">
+                                        <option value="GET">GET</option>
+                                        <option value="POST">POST</option>
+                                        <option value="HEAD">HEAD</option>
+                                        <option value="PUT">PUT</option>
+                                    </select>
+                                </div>
+                                <div>
                                     <label class="block text-sm font-medium text-slate-300 mb-2">
                                         关键词验证 <span class="text-xs font-normal text-slate-500">可选</span>
                                     </label>
                                     <input v-model="newMonitor.keyword" placeholder="页面必须包含的关键词"
                                         class="input-field w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none placeholder-slate-600">
-                                    <p class="text-xs text-slate-500 mt-1.5">响应内容中必须包含此关键词才算正常</p>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-slate-300 mb-2">
@@ -581,8 +629,29 @@
                                     </label>
                                     <input v-model="newMonitor.user_agent" placeholder="Uptime-Monitor/1.0"
                                         class="input-field w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none font-mono placeholder-slate-600">
-                                    <p class="text-xs text-slate-500 mt-1.5">自定义请求的 User-Agent 头</p>
                                 </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-300 mb-2">
+                                        标签 <span class="text-xs font-normal text-slate-500">可选，逗号分隔</span>
+                                    </label>
+                                    <input v-model="newMonitor.tags" placeholder="prod,web,api"
+                                        class="input-field w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none placeholder-slate-600">
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-slate-300 mb-2">自定义请求头 <span class="text-xs font-normal text-slate-500">JSON 格式，可选</span></label>
+                                <input v-model="newMonitor.request_headers" placeholder='{"Authorization":"Bearer xxx"}'
+                                    class="input-field w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none font-mono placeholder-slate-600">
+                            </div>
+                            <div v-if="['POST','PUT','PATCH'].includes(newMonitor.method)" class="mt-4">
+                                <label class="block text-sm font-medium text-slate-300 mb-2">请求体 <span class="text-xs font-normal text-slate-500">POST body</span></label>
+                                <textarea v-model="newMonitor.request_body" placeholder='{"key":"value"}' rows="3"
+                                    class="input-field w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none font-mono placeholder-slate-600 resize-none"></textarea>
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-slate-300 mb-2">错误率阈值告警 <span class="text-xs font-normal text-slate-500">0=关闭，如 50 表示 5 分钟内失败率≥50% 时告警</span></label>
+                                <input type="number" v-model="newMonitor.alert_error_rate" min="0" max="100" placeholder="0"
+                                    class="input-field w-full border border-slate-700 rounded-xl px-4 py-3 text-sm bg-slate-800/80 text-white focus:border-green-500 outline-none placeholder-slate-600">
                             </div>
                         </div>
 
@@ -1011,6 +1080,102 @@
 
     </div>
 
+    <!-- 事件公告 Modal -->
+    <transition enter-active-class="transition duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100"
+        leave-active-class="transition duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div v-if="showIncidents" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showIncidents = false"></div>
+            <div class="relative w-full max-w-lg glass rounded-2xl shadow-2xl flex flex-col" style="animation:modal-in 0.25s ease-out; max-height:85vh">
+                <div class="px-6 py-5 border-b border-white/5 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-orange-500/15 rounded-xl flex items-center justify-center"><i class="fas fa-flag text-orange-400"></i></div>
+                        <div><h3 class="text-lg font-bold text-white">事件公告</h3><p class="text-xs text-slate-500">登地维护、事故公告等</p></div>
+                    </div>
+                    <button @click="showIncidents = false" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div class="bg-slate-900/60 rounded-xl p-4 space-y-3">
+                        <h4 class="text-xs font-semibold uppercase text-slate-500">发布新公告</h4>
+                        <input v-model="incidentForm.title" placeholder="事件标题"
+                            class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800 text-white focus:border-orange-500 outline-none">
+                        <textarea v-model="incidentForm.description" placeholder="详细说明（可选）" rows="2"
+                            class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800 text-white focus:border-orange-500 outline-none resize-none"></textarea>
+                        <div class="flex items-center gap-3">
+                            <select v-model="incidentForm.severity" class="flex-1 border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800 text-white focus:border-orange-500 outline-none">
+                                <option value="info">信息</option><option value="warning">警告</option><option value="critical">紧急</option>
+                            </select>
+                            <button @click="createIncident" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded-lg transition cursor-pointer">发布</button>
+                        </div>
+                    </div>
+                    <div v-if="incidents.length === 0" class="text-center text-slate-500 text-sm py-6">暂无事件公告</div>
+                    <div v-for="inc in incidents" :key="inc.id" class="rounded-xl p-4 border flex items-start gap-3"
+                        :class="inc.status === 'active' ? 'bg-orange-900/10 border-orange-500/20' : 'bg-slate-900/40 border-slate-700/40 opacity-60'">
+                        <i class="fas mt-0.5 text-sm flex-shrink-0" :class="{
+                            'fa-exclamation-circle text-red-400': inc.severity === 'critical',
+                            'fa-exclamation-triangle text-yellow-400': inc.severity === 'warning',
+                            'fa-info-circle text-blue-400': inc.severity === 'info'
+                        }"></i>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-sm font-semibold text-white">{{ inc.title }}</span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded" :class="inc.status === 'active' ? 'bg-orange-500/20 text-orange-300' : 'bg-slate-700 text-slate-400'">{{ inc.status === 'active' ? '进行中' : '已解决' }}</span>
+                            </div>
+                            <p v-if="inc.description" class="text-xs text-slate-400 mt-1">{{ inc.description }}</p>
+                            <p class="text-[10px] text-slate-600 mt-1">{{ formatDate(inc.created_at) }}</p>
+                        </div>
+                        <div class="flex gap-1.5 shrink-0">
+                            <button v-if="inc.status === 'active'" @click="resolveIncident(inc)" class="text-xs px-2.5 py-1 rounded-lg bg-green-500/15 text-green-400 hover:bg-green-500/25 transition cursor-pointer">解决</button>
+                            <button @click="deleteIncident(inc)" class="text-xs px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 transition cursor-pointer"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <!-- 站点设置 Modal -->
+    <transition enter-active-class="transition duration-200" enter-from-class="opacity-0" enter-to-class="opacity-100"
+        leave-active-class="transition duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div v-if="showSettings" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showSettings = false"></div>
+            <div class="relative w-full max-w-md glass rounded-2xl shadow-2xl" style="animation:modal-in 0.25s ease-out">
+                <div class="px-6 py-5 border-b border-white/5 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-indigo-500/15 rounded-xl flex items-center justify-center"><i class="fas fa-cog text-indigo-400"></i></div>
+                        <h3 class="text-lg font-bold text-white">站点设置</h3>
+                    </div>
+                    <button @click="showSettings = false" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">状态页标题</label>
+                        <input v-model="siteSettings.site_title" placeholder="Uptime Monitor" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800/80 text-white focus:border-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">页面描述</label>
+                        <textarea v-model="siteSettings.site_description" rows="2" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800/80 text-white focus:border-indigo-500 outline-none resize-none"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Logo URL <span class="text-xs font-normal text-slate-500">可选</span></label>
+                        <input v-model="siteSettings.site_logo_url" placeholder="https://example.com/logo.png" class="w-full border border-slate-700 rounded-lg px-3 py-2 text-sm bg-slate-800/80 text-white focus:border-indigo-500 outline-none">
+                    </div>
+                    <button @click="saveSettings" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition cursor-pointer">保存设置</button>
+                    <div class="border-t border-white/5 pt-4">
+                        <h4 class="text-xs font-semibold uppercase text-slate-500 mb-3">导入监控配置</h4>
+                        <label class="flex items-center gap-3 px-4 py-3 bg-slate-900/60 rounded-xl border border-slate-700 cursor-pointer hover:border-indigo-500/50 transition">
+                            <i class="fas fa-upload text-indigo-400"></i>
+                            <div>
+                                <p class="text-sm text-white font-medium">选择 JSON 文件</p>
+                                <p class="text-xs text-slate-500">导入之前导出的监控配置</p>
+                            </div>
+                            <input type="file" accept=".json" @change="importMonitors" class="hidden">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
+
     <script>
         const API_BASE = 'https://uptime-worker.2478951652.workers.dev';
 
@@ -1023,7 +1188,7 @@
                 const showLogs = ref(false);
                 const logsLoading = ref(false);
                 const currentMonitor = ref(null);
-                const newMonitor = ref({ name: '', url: '', keyword: '', user_agent: '', interval: 300, check_ssl: true, check_domain: true, alert_silence_hours: '24' });
+                const newMonitor = ref({ name: '', url: '', method: 'GET', keyword: '', user_agent: '', tags: '', request_headers: '', request_body: '', interval: 300, check_ssl: true, check_domain: true, alert_silence_hours: '24', alert_error_rate: 0 });
                 const showAddModal = ref(false);
                 const loading = ref(false);
                 const submitting = ref(false);
@@ -1057,14 +1222,19 @@
                     configForm.value = {
                         name: m.name || '',
                         url: m.url || '',
+                        method: m.method || 'GET',
                         keyword: m.keyword || '',
                         user_agent: m.user_agent || '',
+                        tags: m.tags || '',
+                        request_headers: m.request_headers || '',
+                        request_body: m.request_body || '',
                         interval: m.interval || 300,
                         check_ssl: m.check_ssl !== 0,
                         check_domain: m.check_domain !== 0,
                         alert_silence_uptime:  m.alert_silence_uptime  ?? 24,
                         alert_silence_ssl:     m.alert_silence_ssl     ?? 24,
                         alert_silence_domain:  m.alert_silence_domain  ?? 24,
+                        alert_error_rate: m.alert_error_rate ?? 0,
                     };
                     showConfig.value = true;
                 };
@@ -1076,14 +1246,19 @@
                         const body = {
                             name:                  configForm.value.name,
                             url:                   configForm.value.url,
+                            method:                configForm.value.method || 'GET',
                             keyword:               configForm.value.keyword,
                             user_agent:            configForm.value.user_agent,
+                            tags:                  configForm.value.tags || '',
+                            request_headers:       configForm.value.request_headers || '',
+                            request_body:          configForm.value.request_body || '',
                             interval:              Number(configForm.value.interval),
                             check_ssl:             configForm.value.check_ssl ? 1 : 0,
                             check_domain:          configForm.value.check_domain ? 1 : 0,
                             alert_silence_uptime:  Number(configForm.value.alert_silence_uptime),
                             alert_silence_ssl:     Number(configForm.value.alert_silence_ssl),
                             alert_silence_domain:  Number(configForm.value.alert_silence_domain),
+                            alert_error_rate:      Number(configForm.value.alert_error_rate ?? 0),
                         };
                         const res = await authFetch(`${API_BASE}/monitors/${configTarget.value.id}/config`, {
                             method: 'PATCH',
@@ -1248,7 +1423,7 @@
                             body: JSON.stringify(body)
                         });
                         if (res.ok) {
-                            newMonitor.value = { name: '', url: '', keyword: '', user_agent: '', interval: 300, check_ssl: true, check_domain: true, alert_silence_hours: '24' };
+                            newMonitor.value = { name: '', url: '', method: 'GET', keyword: '', user_agent: '', tags: '', request_headers: '', request_body: '', interval: 300, check_ssl: true, check_domain: true, alert_silence_hours: '24', alert_error_rate: 0 };
                             showAddModal.value = false;
                             addToast('监控添加成功，正在获取证书信息…', 'success');
                             fetchMonitors();
@@ -1467,7 +1642,82 @@
                     } catch (e) { addToast('测试失败', 'error'); }
                 };
 
-                // 监听弹窗打开时加载数据
+                // ── 筛选 / 批量操作 ──────────────────────────────
+                const activeTag = Vue.ref('');
+                const selectedIds = Vue.ref([]);
+                const allTags = Vue.computed(() => {
+                    const tags = new Set();
+                    monitors.value.forEach(m => { if (m.tags) m.tags.split(',').forEach(t => { const s = t.trim(); if (s) tags.add(s); }); });
+                    return [...tags].sort();
+                });
+                const filteredMonitors = Vue.computed(() => {
+                    if (!activeTag.value) return monitors.value;
+                    return monitors.value.filter(m => m.tags && m.tags.split(',').map(t => t.trim()).includes(activeTag.value));
+                });
+                const parseTags = (tags) => tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+                const batchAction = async (action) => {
+                    if (selectedIds.value.length === 0) return;
+                    if (action === 'delete') { const ok = await showConfirm(`确定批量删除 ${selectedIds.value.length} 个监控？`); if (!ok) return; }
+                    try {
+                        const res = await authFetch(`${API_BASE}/monitors/batch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ids: selectedIds.value }) });
+                        if (res.ok) { const d = await res.json(); addToast(`操作成功，影响 ${d.affected} 项`, 'success'); selectedIds.value = []; fetchMonitors(); }
+                        else { addToast('批量操作失败', 'error'); }
+                    } catch { addToast('网络错误', 'error'); }
+                };
+                // ── 事件公告 ────────────────────────────────────
+                const showIncidents = Vue.ref(false);
+                const incidents = Vue.ref([]);
+                const incidentForm = Vue.ref({ title: '', description: '', severity: 'info' });
+                const fetchIncidents = async () => {
+                    try { const res = await authFetch(`${API_BASE}/incidents/all`); if (res.ok) incidents.value = await res.json(); } catch {}
+                };
+                const createIncident = async () => {
+                    if (!incidentForm.value.title) { addToast('请填写标题', 'error'); return; }
+                    try {
+                        const res = await authFetch(`${API_BASE}/incidents`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(incidentForm.value) });
+                        if (res.ok) { addToast('公告已发布', 'success'); incidentForm.value = { title: '', description: '', severity: 'info' }; fetchIncidents(); }
+                        else { addToast('发布失败', 'error'); }
+                    } catch { addToast('网络错误', 'error'); }
+                };
+                const resolveIncident = async (inc) => {
+                    try { const res = await authFetch(`${API_BASE}/incidents/${inc.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'resolved' }) }); if (res.ok) { addToast('已标记解决', 'success'); fetchIncidents(); } } catch {}
+                };
+                const deleteIncident = async (inc) => {
+                    const ok = await showConfirm(`确定删除「${inc.title}」？`); if (!ok) return;
+                    try { const res = await authFetch(`${API_BASE}/incidents/${inc.id}`, { method: 'DELETE' }); if (res.ok) { addToast('已删除', 'success'); fetchIncidents(); } } catch {}
+                };
+                Vue.watch(showIncidents, v => { if (v) fetchIncidents(); });
+                // ── 站点设置 ────────────────────────────────────
+                const showSettings = Vue.ref(false);
+                const siteSettings = Vue.ref({ site_title: 'Uptime Monitor', site_description: '', site_logo_url: '' });
+                const fetchSettings = async () => {
+                    try { const res = await fetch(`${API_BASE}/settings`); if (res.ok) { const d = await res.json(); siteSettings.value = { site_title: d.site_title || 'Uptime Monitor', site_description: d.site_description || '', site_logo_url: d.site_logo_url || '' }; } } catch {}
+                };
+                const saveSettings = async () => {
+                    try { const res = await authFetch(`${API_BASE}/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(siteSettings.value) }); if (res.ok) { addToast('设置已保存', 'success'); showSettings.value = false; } else { addToast('保存失败', 'error'); } } catch { addToast('网络错误', 'error'); }
+                };
+                Vue.watch(showSettings, v => { if (v) fetchSettings(); });
+                // ── 导出/导入 ───────────────────────────────────
+                const exportMonitors = () => {
+                    const data = monitors.value.map(m => ({ name: m.name, url: m.url, method: m.method, interval: m.interval, keyword: m.keyword, user_agent: m.user_agent, tags: m.tags, request_headers: m.request_headers, request_body: m.request_body }));
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `uptime-monitors-${new Date().toISOString().slice(0,10)}.json`; a.click();
+                    addToast(`已导出 ${data.length} 个监控配置`, 'success');
+                };
+                const importMonitors = async (e) => {
+                    const file = e.target.files[0]; if (!file) return;
+                    try {
+                        const text = await file.text();
+                        const items = JSON.parse(text);
+                        if (!Array.isArray(items)) { addToast('无效格式', 'error'); return; }
+                        let ok = 0;
+                        for (const item of items) { const r = await authFetch(`${API_BASE}/monitors`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) }); if (r.ok) ok++; }
+                        addToast(`导入 ${ok}/${items.length} 个成功`, 'success'); fetchMonitors(); showSettings.value = false;
+                    } catch { addToast('导入失败', 'error'); }
+                    e.target.value = '';
+                };
+
+                                // 监听弹窗打开时加载数据
                 Vue.watch(showChannels, (v) => { if (v) fetchChannels(); });
 
                 onMounted(() => {
@@ -1489,6 +1739,10 @@
                     showChannels, channels, channelsLoading, channelEditing, channelSaving,
                     channelTypeInfo,
                     fetchChannels, saveChannel, editChannel, deleteChannel, toggleChannel, testChannel,
+                    // 新功能
+                    activeTag, selectedIds, allTags, filteredMonitors, parseTags, batchAction,
+                    showIncidents, incidents, incidentForm, createIncident, resolveIncident, deleteIncident,
+                    showSettings, siteSettings, saveSettings, exportMonitors, importMonitors,
                 };
             }
         }).mount('#app');

@@ -227,7 +227,7 @@
         <main class="flex-1 max-w-5xl w-full mx-auto px-6 py-12">
 
             <!-- ▸ 英雄状态区 -->
-            <div class="mb-12 fade-up">
+            <div class="mb-6 fade-up">
                 <!-- 全部正常 -->
                 <div v-if="allUp && !hasRetrying && !error"
                     class="hero-banner relative overflow-hidden rounded-3xl p-8 md:p-10 border border-emerald-200 dark:border-emerald-500/15 glow-green">
@@ -354,8 +354,30 @@
                 <p class="text-slate-400 dark:text-slate-600 font-mono text-sm tracking-widest">NO MONITORS CONFIGURED</p>
             </div>
 
+            <!-- ▸ 事件公告区域 -->
+            <div v-if="incidents.length > 0" class="mb-6 space-y-2 fade-up">
+                <div v-for="inc in incidents" :key="inc.id"
+                    class="rounded-2xl px-5 py-4 border flex items-start gap-4"
+                    :class="{
+                        'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-500/20': inc.severity === 'critical',
+                        'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-500/20': inc.severity === 'warning',
+                        'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-500/20': inc.severity === 'info'
+                    }">
+                    <i class="fas text-lg mt-0.5" :class="{
+                        'fa-exclamation-circle text-red-500': inc.severity === 'critical',
+                        'fa-exclamation-triangle text-yellow-500': inc.severity === 'warning',
+                        'fa-info-circle text-blue-500': inc.severity === 'info'
+                    }"></i>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-sm text-slate-900 dark:text-white">{{ inc.title }}</p>
+                        <p v-if="inc.description" class="text-sm text-slate-600 dark:text-slate-400 mt-0.5">{{ inc.description }}</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 font-mono">{{ formatDate(inc.created_at) }}</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- ▸ 监控列表 -->
-            <div v-else class="fade-up-d1">
+            <div class="fade-up-d1">
                 <!-- 区域标签 -->
                 <div class="flex items-center justify-between mb-5">
                     <div class="flex items-center gap-3">
@@ -529,6 +551,25 @@
                     }
                 };
 
+                const incidents = Vue.ref([]);
+                const siteSettings = Vue.ref({ site_title: 'Uptime Monitor', site_description: '', site_logo_url: '' });
+
+                const fetchIncidents = async () => {
+                    try { const r = await fetch(`${API_BASE}/incidents`); if (r.ok) incidents.value = await r.json(); } catch {}
+                };
+                const fetchSettings = async () => {
+                    try {
+                        const r = await fetch(`${API_BASE}/settings`);
+                        if (r.ok) {
+                            const d = await r.json();
+                            siteSettings.value = d;
+                            if (d.site_title) document.title = d.site_title + ' — Status';
+                            const meta = document.querySelector('meta[name=description]');
+                            if (meta && d.site_description) meta.content = d.site_description;
+                        }
+                    } catch {}
+                };
+
                 const formatDate = (str) => {
                     if (!str) return '-';
                     let s = str;
@@ -565,6 +606,8 @@
                 onMounted(() => {
                     initTheme();
                     fetchMonitors();
+                    fetchIncidents();
+                    fetchSettings();
                     setInterval(fetchMonitors, 30000);
                 });
 
@@ -572,7 +615,8 @@
                     monitors, loading, isDark, error,
                     allUp, hasRetrying, hasDown,
                     toggleTheme, fetchMonitors,
-                    formatDate, getDaysRemaining, getExpiryClass, formatExpiry
+                    formatDate, getDaysRemaining, getExpiryClass, formatExpiry,
+                    incidents, siteSettings,
                 };
             }
         }).mount('#app');
