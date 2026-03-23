@@ -108,14 +108,14 @@ app.use('/*', async (c, next) => {
 
   const token = authHeader.replace(/^Bearer\s+/i, '');
 
-  // 优先 API Key，回退密码
+  // API Key 和密码均可接受（任意一个匹配即通过）
   const apiKey = c.env.ADMIN_API_KEY;
   const adminPassword = c.env.ADMIN_PASSWORD;
 
   if (apiKey && token === apiKey) return await next();
-  if (!apiKey && adminPassword && token === adminPassword) return await next();
+  if (adminPassword && token === adminPassword) return await next();
   if (!apiKey && !adminPassword) {
-    console.warn('Neither ADMIN_API_KEY nor ADMIN_PASSWORD is set. All admin routes are unprotected!');
+    console.warn('Neither ADMIN_API_KEY nor ADMIN_PASSWORD is set.');
     return await next();
   }
 
