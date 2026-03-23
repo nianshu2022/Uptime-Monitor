@@ -604,12 +604,26 @@ async function updateDomainCertInfo(env: Bindings, monitor: Monitor) {
       }
 
       if (certs.length > 0) {
-        const sorted = certs.sort(
+        const nowMs = Date.now();
+        // crt.sh 的 not_after 有时为 "2025-03-25 11:59:59"（空格而非 T），
+        // 需要归一化后才能被 new Date() 正确解析。
+        const parseExpiry = (s: string) =>
+          new Date(s.replace(' ', 'T')).getTime();
+
+        // 优先只在尚未过期的证书中取最晚到期时间，
+        // 避免 crt.sh 历史旧证书污染结果。
+        const validCerts = certs.filter((c) => {
+          const exp = parseExpiry(c.not_after as string);
+          return !isNaN(exp) && exp > nowMs;
+        });
+        const source = validCerts.length > 0 ? validCerts : certs;
+        const sorted = source.sort(
           (a, b) =>
-            new Date(b.not_after as string).getTime() -
-            new Date(a.not_after as string).getTime()
+            parseExpiry(b.not_after as string) -
+            parseExpiry(a.not_after as string)
         );
-        certExpiry = sorted[0].not_after as string;
+        // 统一存储为带 T 的 ISO 格式
+        certExpiry = (sorted[0].not_after as string).replace(' ', 'T');
         console.log(`Found cert expiry for ${domain}: ${certExpiry}`);
       }
     } catch (e) {
