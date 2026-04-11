@@ -87,6 +87,13 @@ jobs:
           VITE_FOOTER_AUTHOR: ${{ vars.VITE_FOOTER_AUTHOR }}
           VITE_FOOTER_URL: ${{ vars.VITE_FOOTER_URL }}
 
+      - name: Create Pages project (if not exists)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create uptime-monitor --production-branch=main || true
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
