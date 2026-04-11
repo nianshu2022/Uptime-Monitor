@@ -232,24 +232,24 @@
             <!-- 页面标题 -->
             <div class="mb-8 fade-up flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-white tracking-tight">管理控制台</h1>
+                    <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">管理控制台</h1>
                     <p class="text-slate-500 text-sm mt-0.5">管理监控项目与通知配置</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <button @click="showIncidents = true"
-                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-600/50">
+                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600/50 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-300 dark:border-slate-600/50">
                         <i class="fas fa-flag text-xs"></i> 事件公告
                     </button>
                     <button @click="showSettings = true"
-                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-600/50">
+                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600/50 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-300 dark:border-slate-600/50">
                         <i class="fas fa-cog text-xs"></i> 站点设置
                     </button>
                     <button @click="exportMonitors"
-                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-600/50">
+                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600/50 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-300 dark:border-slate-600/50">
                         <i class="fas fa-download text-xs"></i> 导出
                     </button>
                     <button @click="showChannels = true"
-                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-600/50">
+                        class="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600/50 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-medium rounded-xl transition-all cursor-pointer border border-slate-300 dark:border-slate-600/50">
                         <i class="fas fa-bell text-xs"></i> 通知渠道
                     </button>
                     <button @click="showAddModal = true"
@@ -271,12 +271,12 @@
                 <div class="glass rounded-xl p-4 glow-green">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">总计</span>
-                        <div class="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center">
-                            <i class="fas fa-server text-slate-400 text-xs"></i>
+                        <div class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center">
+                            <i class="fas fa-server text-slate-500 dark:text-slate-400 text-xs"></i>
                         </div>
                     </div>
-                    <p class="text-2xl font-bold text-white font-mono">{{ stats.total }}</p>
-                    <p class="text-[10px] text-slate-600 mt-1 uppercase tracking-wider">Monitors</p>
+                    <p class="text-2xl font-bold text-slate-900 dark:text-white font-mono">{{ stats.total }}</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-600 mt-1 uppercase tracking-wider">Monitors</p>
                 </div>
                 <div class="glass rounded-xl p-4">
                     <div class="flex items-center justify-between mb-3">
@@ -286,7 +286,7 @@
                         </div>
                     </div>
                     <p class="text-2xl font-bold text-green-400 font-mono">{{ stats.online }}</p>
-                    <p class="text-[10px] text-slate-600 mt-1 uppercase tracking-wider">Operational</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-600 mt-1 uppercase tracking-wider">Operational</p>
                 </div>
                 <div class="glass rounded-xl p-4">
                     <div class="flex items-center justify-between mb-3">
@@ -296,17 +296,17 @@
                         </div>
                     </div>
                     <p class="text-2xl font-bold text-red-400 font-mono">{{ stats.offline }}</p>
-                    <p class="text-[10px] text-slate-600 mt-1 uppercase tracking-wider">Disrupted</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-600 mt-1 uppercase tracking-wider">Disrupted</p>
                 </div>
                 <div class="glass rounded-xl p-4">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">暂停</span>
-                        <div class="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                        <div class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center">
                             <i class="fas fa-pause text-slate-500 text-xs"></i>
                         </div>
                     </div>
-                    <p class="text-2xl font-bold text-slate-400 font-mono">{{ stats.paused }}</p>
-                    <p class="text-[10px] text-slate-600 mt-1 uppercase tracking-wider">Paused</p>
+                    <p class="text-2xl font-bold text-slate-600 dark:text-slate-400 font-mono">{{ stats.paused }}</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-600 mt-1 uppercase tracking-wider">Paused</p>
                 </div>
             </div>
 
@@ -317,11 +317,11 @@
 
             <!-- 空状态 -->
             <div v-else-if="monitors.length === 0 && !loading"
-                class="text-center py-20 glass rounded-2xl border border-dashed border-slate-700 fade-up-d2">
-                <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-satellite-dish text-2xl text-slate-600"></i>
+                class="text-center py-20 glass rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 fade-up-d2">
+                <div class="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-satellite-dish text-2xl text-slate-400 dark:text-slate-600"></i>
                 </div>
-                <h3 class="text-lg font-medium text-white">暂无监控项目</h3>
+                <h3 class="text-lg font-medium text-slate-900 dark:text-white">暂无监控项目</h3>
                 <p class="text-slate-500 mt-1 mb-6 text-sm">点击上方「添加监控」开始配置</p>
                 <button @click="showAddModal = true"
                     class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-xl transition-all shadow-sm hover:shadow-lg hover:shadow-green-500/20 cursor-pointer">
@@ -341,7 +341,7 @@
                                 <input v-model="searchQuery" type="text" placeholder="搜索名称或 URL..." class="search-input">
                             </div>
                             <!-- 排序 -->
-                            <select v-model="sortKey" class="text-[11px] font-mono bg-transparent border border-slate-700 dark:border-slate-700 text-slate-400 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-green-500" style="appearance:none;-webkit-appearance:none">
+                            <select v-model="sortKey" class="text-[11px] font-mono bg-transparent border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-green-500" style="appearance:none;-webkit-appearance:none">
                                 <option value="">默认排序</option>
                                 <option value="name">按名称</option>
                                 <option value="status">按状态</option>
@@ -392,7 +392,7 @@
                         </div>
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2 mb-0.5">
-                                <h3 class="font-semibold text-white truncate">{{ m.name }}</h3>
+                                <h3 class="font-semibold text-slate-900 dark:text-white truncate">{{ m.name }}</h3>
                                 <span class="text-[10px] font-mono text-slate-600 shrink-0">{{ m.method || 'GET' }}</span>
                                 <span v-if="m.status === 'DOWN'"
                                     class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 animate-pulse">DOWN</span>
@@ -446,7 +446,7 @@
 
                         <!-- 操作按钮 -->
                         <div class="flex items-center gap-0.5">
-                            <button @click="forceCheck(m)" class="p-2 text-slate-400 dark:text-slate-500 hover:text-green-500 hover:bg-green-500/10 rounded-lg transition-colors cursor-pointer" title="手动监测" :disabled="m._checking">
+                            <button @click="forceCheck(m)" class="p-2 text-slate-500 dark:text-slate-500 hover:text-green-500 hover:bg-green-500/10 rounded-lg transition-colors cursor-pointer" title="手动监测" :disabled="m._checking">
                                 <i class="fas fa-sync-alt text-sm" :class="{ 'fa-spin text-green-400': m._checking }"></i>
                             </button>
                             <button @click="togglePause(m)" class="p-2 rounded-lg transition-colors cursor-pointer" :class="m.paused
@@ -455,16 +455,16 @@
                                 :title="m.paused ? '恢复监控' : '暂停监控'">
                                 <i :class="m.paused ? 'fas fa-play' : 'fas fa-pause'" class="text-sm"></i>
                             </button>
-                            <button @click="openConfig(m)" class="p-2 text-slate-400 dark:text-slate-500 hover:text-purple-500 hover:bg-purple-500/10 rounded-lg transition-colors cursor-pointer" title="配置">
+                            <button @click="openConfig(m)" class="p-2 text-slate-500 dark:text-slate-500 hover:text-purple-500 hover:bg-purple-500/10 rounded-lg transition-colors cursor-pointer" title="配置">
                                 <i class="fas fa-sliders-h text-sm"></i>
                             </button>
-                            <button @click="viewLogs(m)" class="p-2 text-slate-400 dark:text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer" title="日志">
+                            <button @click="viewLogs(m)" class="p-2 text-slate-500 dark:text-slate-500 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer" title="日志">
                                 <i class="fas fa-list-ul text-sm"></i>
                             </button>
-                            <button @click="cloneMonitor(m)" class="p-2 text-slate-400 dark:text-slate-500 hover:text-indigo-500 hover:bg-indigo-500/10 rounded-lg transition-colors cursor-pointer" title="克隆">
+                            <button @click="cloneMonitor(m)" class="p-2 text-slate-500 dark:text-slate-500 hover:text-indigo-500 hover:bg-indigo-500/10 rounded-lg transition-colors cursor-pointer" title="克隆">
                                 <i class="far fa-copy text-sm"></i>
                             </button>
-                            <button @click="deleteMonitor(m)" class="p-2 text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer" title="删除">
+                            <button @click="deleteMonitor(m)" class="p-2 text-slate-500 dark:text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer" title="删除">
                                 <i class="far fa-trash-alt text-sm"></i>
                             </button>
                         </div>

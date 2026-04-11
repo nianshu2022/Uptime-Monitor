@@ -206,15 +206,8 @@ npx wrangler pages deploy dist --project-name=uptime-monitor
 
 1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com/)
 2. 进入 **Workers & Pages → uptime-monitor → Settings → Environment variables**
-3. 点击 **Add variable**，添加以下变量：
-
-| 变量名 | 值 |
-|---|---|
-| `WORKER_URL` | `https://uptime-worker.你的子域名.workers.dev` |
-
-> ⚠️ **Production 和 Preview 环境都要设置**。
-
-4. 设置好后**重新部署**使其生效：
+3. 点击 **Add variable**，Type 选择 `Text`，Variable name 填 `WORKER_URL`，Value 填你的 Worker 地址（如 `https://uptime-worker.xxx.workers.dev`）
+4. 点击保存后**重新部署**使其生效：
 
 ```bash
 npx wrangler pages deploy dist --project-name=uptime-monitor
@@ -306,7 +299,7 @@ git push origin main
 
 1. 部署完成后，在 Cloudflare Dashboard → **Workers & Pages** 中找到你的 Worker，复制其 URL（形如 `https://uptime-worker.xxx.workers.dev`）
 2. 进入 **Workers & Pages → uptime-monitor → Settings → Environment variables**
-3. 添加 `WORKER_URL = 你的 Worker 地址`（Production 和 Preview 都要设置）
+3. 点击 **Add variable**，Type 选择 `Text`，Variable name 填 `WORKER_URL`，Value 填你的 Worker 地址，保存
 4. 回到 GitHub，重新触发一次 Actions（或 `git push` 一次），使前端重新部署以读取到新的环境变量
 
 ### B-6. 验证部署 ✅
