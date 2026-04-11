@@ -7,6 +7,9 @@ on:
   # 允许手动触发
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   deploy-worker:
     name: Deploy Worker (Backend)
@@ -19,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: worker/package-lock.json
 
@@ -27,31 +30,34 @@ jobs:
         working-directory: worker
         run: npm ci
 
-      - name: Deploy Worker via Wrangler
+      - name: Generate wrangler.toml
+        working-directory: worker
+        run: |
+          cat > wrangler.toml << 'WRANGLER_EOF'
+          name = "uptime-worker"
+          main = "src/index.ts"
+          compatibility_date = "2024-02-08"
+
+          [triggers]
+          crons = ["* * * * *"]
+          WRANGLER_EOF
+
+          echo '' >> wrangler.toml
+          echo '[[d1_databases]]' >> wrangler.toml
+          echo 'binding = "DB"' >> wrangler.toml
+          echo 'database_name = "uptime-db"' >> wrangler.toml
+          echo 'database_id = "${{ secrets.D1_DATABASE_ID }}"' >> wrangler.toml
+          echo '' >> wrangler.toml
+          echo '[vars]' >> wrangler.toml
+          echo 'ADMIN_API_KEY = "${{ secrets.ADMIN_API_KEY }}"' >> wrangler.toml
+
+      - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
           command: deploy
-          # wrangler.toml 不在 Git 中，CI 动态生成
-          preCommands: |
-            cat > wrangler.toml << 'EOF'
-            name = "uptime-worker"
-            main = "src/index.ts"
-            compatibility_date = "2024-02-08"
-
-            [triggers]
-            crons = ["* * * * *"]
-
-            [[d1_databases]]
-            binding = "DB"
-            database_name = "uptime-db"
-            database_id = "${{ secrets.D1_DATABASE_ID }}"
-
-            [vars]
-            ADMIN_API_KEY = "${{ secrets.ADMIN_API_KEY }}"
-            EOF
 
   deploy-pages:
     name: Deploy Pages (Frontend)
@@ -64,7 +70,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
