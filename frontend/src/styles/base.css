@@ -166,9 +166,9 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
 .uptime-tooltip {
     position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
     padding: 5px 10px; border-radius: 8px; font-size: 10px; font-family: 'JetBrains Mono', monospace;
-    white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 20;
+    white-space: nowrap; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0.2s; z-index: 20;
     background: #0f172a; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 .uptime-tooltip::after {
     content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
@@ -178,7 +178,7 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
 .uptime-bar-cell:nth-child(-n+20) .uptime-tooltip::after { left: 12px; transform: translateX(0); }
 .uptime-bar-cell:nth-last-child(-n+20) .uptime-tooltip { left: auto; right: 0; transform: translateX(0); }
 .uptime-bar-cell:nth-last-child(-n+20) .uptime-tooltip::after { left: auto; right: 12px; transform: translateX(0); }
-.uptime-bar-cell:hover .uptime-tooltip { opacity: 1; }
+.uptime-bar-cell:hover .uptime-tooltip { opacity: 1; visibility: visible; }
 
 /* ── Modal 弹入 ── */
 @keyframes modal-in {
@@ -255,6 +255,7 @@ html:not(.dark) .search-input:focus { border-color: #22c55e; }
     .monitor-row2 span { font-size: 10px !important; }
     .monitor-row3 { padding-left: 0.25rem !important; }
     .uptime-bar-cell { height: 12px !important; }
+    .uptime-tooltip { display: none !important; }
     .monitor-row3 .flex.justify-between span { font-size: 9px !important; }
     .status-line::before { left: 0; top: 8px; bottom: 8px; width: 2.5px; }
     
