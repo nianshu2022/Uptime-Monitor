@@ -59,7 +59,15 @@ export default {
       });
     }
 
-    // 其他路径 → 服务静态资源
-    return env.ASSETS.fetch(request);
+    // 其他路径 → 服务静态资源（SPA fallback）
+    const assetResponse = await env.ASSETS.fetch(request);
+
+    // 如果静态资源不存在（404），返回 index.html 让 Vue Router 处理
+    if (assetResponse.status === 404) {
+      const indexUrl = new URL('/', url.origin);
+      return env.ASSETS.fetch(new Request(indexUrl, request));
+    }
+
+    return assetResponse;
   },
 };
