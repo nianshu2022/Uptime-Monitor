@@ -257,6 +257,13 @@ html:not(.dark) .search-input:focus { border-color: #22c55e; }
     .uptime-bar-cell { height: 12px !important; }
     .monitor-row3 .flex.justify-between span { font-size: 9px !important; }
     .status-line::before { left: 0; top: 8px; bottom: 8px; width: 2.5px; }
+    
+    /* 极致优化移动端性能（防掉帧与白屏） */
+    .hero-glow { animation: none !important; filter: blur(40px) !important; opacity: 0.4 !important; transform: translateZ(0); }
+    .pulse-dot, .pulse-ring { animation: none !important; opacity: 0.8 !important; }
+    .dark .glass, .dark .glass-card { backdrop-filter: blur(8px) saturate(1.2) !important; }
+    html:not(.dark) .glass, html:not(.dark) .glass-card { backdrop-filter: blur(8px) !important; }
+    .glass-card:hover { transform: none !important; box-shadow: none !important; }
 }
 
 @media (max-width: 400px) {
