@@ -9,10 +9,15 @@ export const formatDate = (str) => {
     else if (typeof s === 'string' && !s.includes('Z') && !s.includes('+'))
         s += 'Z';
     const date = new Date(s);
+    if (isNaN(date.getTime())) return '-';
     const diff = (Date.now() - date) / 1000;
     if (diff < 60) return '< 1m ago';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    return date.toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+    try {
+        return date.toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch (e) {
+        return '-';
+    }
 };
 
 /**
@@ -26,12 +31,17 @@ export const formatDateFull = (str) => {
     else if (typeof str === 'string' && !str.includes('Z') && !str.includes('+'))
         dateStr = str + 'Z';
     const date = new Date(dateStr);
-    return date.toLocaleString('zh-CN', {
-        timeZone: 'Asia/Shanghai',
-        month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false
-    });
+    if (isNaN(date.getTime())) return '-';
+    try {
+        return date.toLocaleString('zh-CN', {
+            timeZone: 'Asia/Shanghai',
+            month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false
+        });
+    } catch (e) {
+        return '-';
+    }
 };
 
 /**
@@ -39,7 +49,14 @@ export const formatDateFull = (str) => {
  */
 export const getDaysRemaining = (dateStr) => {
     if (!dateStr) return null;
-    return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
+    let s = dateStr;
+    if (typeof s === 'string' && !s.includes('Z') && !s.includes('+') && !s.includes('T'))
+        s = s.replace(' ', 'T') + 'Z';
+    else if (typeof s === 'string' && !s.includes('Z') && !s.includes('+'))
+        s += 'Z';
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return null;
+    return Math.ceil((d.getTime() - Date.now()) / 86400000);
 };
 
 /**

@@ -62,9 +62,9 @@
         </div>
       </div>
       <!-- 右侧状态与操作 -->
-      <div class="flex items-center gap-6 md:gap-8 w-full md:w-auto border-t md:border-t-0 border-slate-100 dark:border-white/5 pt-3 md:pt-0">
-        <div class="grid grid-cols-4 md:flex md:items-center gap-3 md:gap-4 text-center md:text-right flex-1 md:flex-none">
-          <div v-if="m._latency != null && !m.paused" class="flex flex-col">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full md:w-auto border-t md:border-t-0 border-slate-100 dark:border-white/5 pt-3 md:pt-0">
+        <div class="flex flex-wrap sm:grid sm:grid-cols-4 md:flex md:items-center gap-3 md:gap-4 text-left md:text-right flex-1 md:flex-none w-full sm:w-auto">
+          <div v-if="m._latency != null && !m.paused" class="flex flex-col w-[calc(50%-6px)] sm:w-auto">
             <span class="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-600 font-bold">Latency</span>
             <span class="text-[11px] font-mono font-bold" :class="m._latency < 200 ? 'text-green-500' : m._latency < 500 ? 'text-yellow-500' : 'text-red-500'">{{ m._latency }}ms</span>
           </div>
@@ -73,20 +73,20 @@
               <path :d="miniSparkline(m._sparkData)" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
             </svg>
           </div>
-          <div class="flex flex-col">
+          <div class="flex flex-col w-[calc(50%-6px)] sm:w-auto">
             <span class="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-600 font-bold">Last Check</span>
             <span class="text-[11px] font-mono text-slate-500 dark:text-slate-400">{{ formatDateFull(m.last_check) }}</span>
           </div>
-          <div class="flex flex-col">
+          <div class="flex flex-col w-[calc(50%-6px)] sm:w-auto">
             <span class="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-600 font-bold">SSL</span>
             <span class="text-[11px] font-mono font-medium" :class="getExpiryClassAdmin(m.cert_expiry)">{{ m.cert_expiry ? getDaysRemaining(m.cert_expiry) + 'd' : 'OK' }}</span>
           </div>
-          <div class="flex flex-col">
+          <div class="flex flex-col w-[calc(50%-6px)] sm:w-auto">
             <span class="text-[9px] uppercase tracking-wider text-slate-500 dark:text-slate-600 font-bold">Domain</span>
             <span class="text-[11px] font-mono font-medium" :class="getExpiryClassAdmin(m.domain_expiry)">{{ m.domain_expiry ? getDaysRemaining(m.domain_expiry) + 'd' : '-' }}</span>
           </div>
         </div>
-        <div class="flex items-center gap-0.5">
+        <div class="flex flex-wrap items-center justify-end gap-0.5 sm:gap-1 w-full sm:w-auto border-t sm:border-t-0 border-slate-100 dark:border-white/5 pt-2 sm:pt-0 mt-1 sm:mt-0">
           <button @click="$emit('force-check', m)" class="p-2 text-slate-500 hover:text-green-500 hover:bg-green-500/10 rounded-lg transition-colors cursor-pointer" :disabled="m._checking">
             <i class="fas fa-sync-alt text-sm" :class="{ 'fa-spin text-green-400': m._checking }"></i>
           </button>

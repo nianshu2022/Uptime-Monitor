@@ -252,7 +252,6 @@ html:not(.dark) .search-input:focus { border-color: #22c55e; }
     .monitor-meta > div svg { width: 10px !important; height: 10px !important; }
     .monitor-row2 { padding-left: 0.25rem !important; flex-direction: column !important; align-items: flex-start !important; gap: 0.25rem !important; margin-bottom: 0.375rem !important; }
     .monitor-row2 a { max-width: 100% !important; font-size: 11px !important; overflow: hidden; text-overflow: ellipsis; }
-    .monitor-row2 .sparkline-wrap { display: none !important; }
     .monitor-row2 span { font-size: 10px !important; }
     .monitor-row3 { padding-left: 0.25rem !important; }
     .uptime-bar-cell { height: 12px !important; }
@@ -261,8 +260,6 @@ html:not(.dark) .search-input:focus { border-color: #22c55e; }
 }
 
 @media (max-width: 400px) {
-    .hero-banner .grid { grid-template-columns: 1fr 1fr !important; }
-    .hero-banner .grid > div:last-child { grid-column: span 2; text-align: center; }
     .monitor-row1 h3 { max-width: 35vw; }
 }
 
