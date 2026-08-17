@@ -49,7 +49,7 @@ Uptime Monitor 是一个基于 Cloudflare Workers、Pages 和 D1 的轻量级网
 
 ## 相关项目
 
-- [MonitorFlare](https://github.com/xusteve/MonitorFlare)：基于本项目的增强分支，利用 Cloudflare Workers + D1 + Pages 免费层实现零成本监控与公开状态页，支持多语言与多种通知渠道。演示：[https://monitorflare.csr.plus](https://monitorflare.csr.plus)
+- [MonitorFlare](https://github.com/xusteve/MonitorFlare)：基于本项目的增强分支，利用 Cloudflare Workers + D1 + Pages 免费层实现零成本监控与公开状态页，支持多语言与多种通知渠道。项目：[https://monitorflare.csr.plus](https://monitorflare.csr.plus)，在线演示：[https://uptime.csr.plus](https://uptime.csr.plus)
 
 ## 界面预览
 
